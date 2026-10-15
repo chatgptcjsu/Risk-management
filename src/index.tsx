@@ -74,11 +74,17 @@ app.get('/', (c) => {
 
         <div class="nav-section-label">WORKSPACE</div>
         <nav class="side-nav workspace-home-nav" aria-label="워크스페이스">
-          <a class="nav-item active" href="#overview"><Icon name="grid" /><span>대시보드</span></a>
+          <a class="nav-item active dashboard-nav-item" href="#overview"><Icon name="grid" /><span>대시보드</span></a>
         </nav>
 
-        <section class="workspace-tree" aria-label="연도별 위험성평가 분류">
-          <div class="workspace-tree-heading"><span>평가 문서</span><span class="workspace-tree-hint">연도별 보관</span></div>
+        <section class="workspace-tree" aria-label="위험성평가 분류">
+          <button class="workspace-assessment-toggle is-open" type="button" data-tree-toggle="workspace-assessments" aria-expanded="true" aria-controls="workspace-assessments-content">
+            <span class="workspace-assessment-icon"><Icon name="clipboard" /></span>
+            <span class="workspace-assessment-title">위험성평가</span>
+            <span class="workspace-assessment-count">24</span>
+            <Icon name="down" className="tree-chevron" />
+          </button>
+          <div class="workspace-tree-content" id="workspace-assessments-content">
           {assessmentYears.map((year) => (
             <div class="tree-year-group" key={year}>
               <button class={`tree-toggle tree-year-toggle${year === 2026 ? ' is-open' : ''}`} type="button" data-tree-toggle={`year-${year}`} aria-expanded={year === 2026 ? 'true' : 'false'} aria-controls={`year-content-${year}`}>
@@ -127,6 +133,7 @@ app.get('/', (c) => {
               </div>
             </div>
           ))}
+          </div>
         </section>
 
         <div class="nav-section-label nav-section-spaced">SAFETY OPERATIONS</div>
