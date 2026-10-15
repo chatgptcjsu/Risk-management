@@ -35,6 +35,26 @@ function Icon({ name, className = '' }: { name: string; className?: string }) {
   )
 }
 
+const departmentFolders = [
+  { name: '제지생산1팀', processes: ['원질', '초지'] },
+  { name: '제지생산2팀', processes: ['카타', '포장'] },
+  { name: '화장지생산팀', processes: ['초지', '가공'] },
+  { name: '패드생산팀', processes: [] },
+  { name: 'PS품질보증팀', processes: [] },
+  { name: 'HL품질보증팀', processes: [] },
+  { name: '환경에너지팀', processes: ['에너지', '환경'] },
+  { name: '공무팀', processes: [] },
+  { name: '전기팀', processes: [] },
+  { name: '구매1팀', processes: [] },
+]
+
+const assessmentFolders = [
+  { id: 'regular', name: '정기 위험성평가', format: 'XLSX', description: '유해위험요인 엑셀' },
+  { id: 'adhoc', name: '수시 위험성평가', format: 'PPTX', description: '개선요청 양식' },
+]
+
+const assessmentYears = [2026, 2025, 2024]
+
 app.get('/', (c) => {
   return c.render(
     <div class="app-shell">
@@ -53,9 +73,64 @@ app.get('/', (c) => {
         </div>
 
         <div class="nav-section-label">WORKSPACE</div>
-        <nav class="side-nav" aria-label="주 메뉴">
+        <nav class="side-nav workspace-home-nav" aria-label="워크스페이스">
           <a class="nav-item active" href="#overview"><Icon name="grid" /><span>대시보드</span></a>
-          <a class="nav-item" href="#assessments"><Icon name="clipboard" /><span>위험성평가</span><span class="nav-count">24</span></a>
+        </nav>
+
+        <section class="workspace-tree" aria-label="연도별 위험성평가 분류">
+          <div class="workspace-tree-heading"><span>평가 문서</span><span class="workspace-tree-hint">연도별 보관</span></div>
+          {assessmentYears.map((year) => (
+            <div class="tree-year-group" key={year}>
+              <button class={`tree-toggle tree-year-toggle${year === 2026 ? ' is-open' : ''}`} type="button" data-tree-toggle={`year-${year}`} aria-expanded={year === 2026 ? 'true' : 'false'} aria-controls={`year-content-${year}`}>
+                <span class="tree-year-icon"><Icon name="calendar" /></span>
+                <span class="tree-year-label">{year}년</span>
+                {year === 2026 ? <span class="tree-current-badge">현재</span> : <span class="tree-archive-badge">보관</span>}
+                <Icon name="down" className="tree-chevron" />
+              </button>
+              <div class="tree-year-content" id={`year-content-${year}`} hidden={year !== 2026}>
+                {assessmentFolders.map((folder) => {
+                  const categoryId = `${year}-${folder.id}`
+                  return (
+                    <div class="tree-category-group" key={categoryId}>
+                      <button class="tree-toggle tree-category-toggle" type="button" data-tree-toggle={`category-${categoryId}`} aria-expanded="false" aria-controls={`category-content-${categoryId}`}>
+                        <span class={`document-format format-${folder.id}`}>{folder.format}</span>
+                        <span class="tree-category-copy"><strong>{folder.name}</strong><small>{folder.description}</small></span>
+                        <Icon name="down" className="tree-chevron" />
+                      </button>
+                      <div class="tree-category-content" id={`category-content-${categoryId}`} hidden>
+                        {departmentFolders.map((department, departmentIndex) => {
+                          const departmentId = `${categoryId}-team-${departmentIndex}`
+                          const departmentPath = `${year}년 / ${folder.name} / ${department.name}`
+                          return department.processes.length > 0 ? (
+                            <div class="tree-team-group" key={departmentId}>
+                              <button class="tree-toggle tree-team-toggle" type="button" data-tree-toggle={`department-${departmentId}`} aria-expanded="false" aria-controls={`department-content-${departmentId}`}>
+                                <span class="tree-team-marker"></span><span class="tree-team-name">{department.name}</span><Icon name="down" className="tree-chevron" />
+                              </button>
+                              <div class="tree-process-content" id={`department-content-${departmentId}`} hidden>
+                                {department.processes.map((process) => (
+                                  <button class="tree-selectable tree-process-leaf" type="button" data-workspace-selection={`${departmentPath} / ${process}`} data-category-name={folder.name} data-document-format={folder.format} key={`${departmentId}-${process}`}>
+                                    <span class="tree-process-marker"></span><span>{process}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          ) : (
+                            <button class="tree-selectable tree-team-leaf" type="button" data-workspace-selection={departmentPath} data-category-name={folder.name} data-document-format={folder.format} key={departmentId}>
+                              <span class="tree-team-marker"></span><span>{department.name}</span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
+        </section>
+
+        <div class="nav-section-label nav-section-spaced">SAFETY OPERATIONS</div>
+        <nav class="side-nav" aria-label="안전관리 메뉴">
           <a class="nav-item" href="#high-risks"><Icon name="alert" /><span>개선조치 관리</span><span class="nav-dot"></span></a>
           <a class="nav-item" href="#documents"><Icon name="file" /><span>문서 보관함</span></a>
         </nav>
@@ -83,7 +158,7 @@ app.get('/', (c) => {
       <main class="main-area" id="overview">
         <header class="topbar">
           <button class="mobile-menu-button" id="mobile-menu-button" type="button" aria-label="메뉴 열기"><Icon name="grid" /></button>
-          <div class="breadcrumb"><span>청주공장</span><span class="crumb-separator">/</span><strong>대시보드</strong></div>
+          <div class="breadcrumb"><span>청주공장</span><span class="crumb-separator">/</span><strong id="breadcrumb-selection">대시보드</strong></div>
           <div class="topbar-actions">
             <label class="global-search"><Icon name="search" /><input type="search" placeholder="평가, 공정, 위험요인 검색" aria-label="통합 검색" /></label>
             <button class="icon-button notification-button" type="button" aria-label="알림"><Icon name="bell" /><span class="notification-dot"></span></button>
@@ -162,23 +237,23 @@ app.get('/', (c) => {
                   <table class="assessment-table">
                     <thead><tr><th>평가명 / 공정</th><th>유형</th><th>작성자</th><th>진행률</th><th>고위험</th><th>상태</th><th><span class="sr-only">상세</span></th></tr></thead>
                     <tbody id="assessment-table-body">
-                      <tr data-type="regular" data-search="제지 1팀 초지 공정 정기 위험성평가 김민수">
-                        <td><div class="assessment-name"><span class="assessment-symbol symbol-mint">제</span><span><strong>초지 공정 위험성평가</strong><small>제지 1팀 · 초지 공정</small></span></div></td>
+                      <tr data-type="regular" data-search="제지생산1팀 초지 공정 정기 위험성평가 김민수">
+                        <td><div class="assessment-name"><span class="assessment-symbol symbol-mint">제</span><span><strong>초지 공정 위험성평가</strong><small>제지생산1팀 · 초지</small></span></div></td>
                         <td><span class="type-badge type-regular">정기</span></td><td><span class="author-cell"><i class="author-avatar avatar-teal">김</i> 김민수</span></td>
                         <td><div class="progress-cell"><div class="table-progress"><span style="width:100%"></span></div><small>100%</small></div></td><td><span class="risk-count risk-high">3건</span></td><td><span class="status-badge status-approved"><i></i> 승인 완료</span></td><td><button class="row-menu" type="button" aria-label="초지 공정 메뉴"><Icon name="more" /></button></td>
                       </tr>
-                      <tr data-type="adhoc" data-search="공무팀 보전파트 화장지 4호기 덤프 체스트 수시 정비 김현구">
-                        <td><div class="assessment-name"><span class="assessment-symbol symbol-peach">공</span><span><strong>화장지 4호기 설비 정비</strong><small>공무팀 · 보전파트</small></span></div></td>
+                      <tr data-type="adhoc" data-search="공무팀 화장지 4호기 덤프 체스트 수시 정비 김현구">
+                        <td><div class="assessment-name"><span class="assessment-symbol symbol-peach">공</span><span><strong>화장지 4호기 설비 정비</strong><small>공무팀</small></span></div></td>
                         <td><span class="type-badge type-adhoc">수시</span></td><td><span class="author-cell"><i class="author-avatar avatar-violet">김</i> 김현구</span></td>
                         <td><div class="progress-cell"><div class="table-progress"><span style="width:72%"></span></div><small>72%</small></div></td><td><span class="risk-count risk-high">2건</span></td><td><span class="status-badge status-review"><i></i> 검토 요청</span></td><td><button class="row-menu" type="button" aria-label="화장지 4호기 메뉴"><Icon name="more" /></button></td>
                       </tr>
-                      <tr data-type="regular" data-search="환경에너지팀 보일러 설비 정기 위험성평가 이수진">
-                        <td><div class="assessment-name"><span class="assessment-symbol symbol-blue">환</span><span><strong>보일러 설비 정기평가</strong><small>환경에너지팀 · 보일러</small></span></div></td>
+                      <tr data-type="regular" data-search="환경에너지팀 에너지 설비 정기 위험성평가 이수진">
+                        <td><div class="assessment-name"><span class="assessment-symbol symbol-blue">환</span><span><strong>보일러 설비 정기평가</strong><small>환경에너지팀 · 에너지</small></span></div></td>
                         <td><span class="type-badge type-regular">정기</span></td><td><span class="author-cell"><i class="author-avatar avatar-blue">이</i> 이수진</span></td>
                         <td><div class="progress-cell"><div class="table-progress"><span style="width:48%"></span></div><small>48%</small></div></td><td><span class="risk-count">1건</span></td><td><span class="status-badge status-progress"><i></i> 작성 중</span></td><td><button class="row-menu" type="button" aria-label="보일러 설비 메뉴"><Icon name="more" /></button></td>
                       </tr>
-                      <tr data-type="adhoc" data-search="생활품질관리팀 포장라인 신규 공정 수시 위험성평가 박서연">
-                        <td><div class="assessment-name"><span class="assessment-symbol symbol-lilac">생</span><span><strong>신규 포장라인 평가</strong><small>생활품질관리팀 · 포장라인</small></span></div></td>
+                      <tr data-type="adhoc" data-search="화장지생산팀 가공 신규 공정 수시 위험성평가 박서연">
+                        <td><div class="assessment-name"><span class="assessment-symbol symbol-lilac">생</span><span><strong>화장지 가공 공정 평가</strong><small>화장지생산팀 · 가공</small></span></div></td>
                         <td><span class="type-badge type-adhoc">수시</span></td><td><span class="author-cell"><i class="author-avatar avatar-rose">박</i> 박서연</span></td>
                         <td><div class="progress-cell"><div class="table-progress"><span style="width:28%"></span></div><small>28%</small></div></td><td><span class="risk-count risk-high">4건</span></td><td><span class="status-badge status-progress"><i></i> 작성 중</span></td><td><button class="row-menu" type="button" aria-label="신규 포장라인 메뉴"><Icon name="more" /></button></td>
                       </tr>
@@ -198,10 +273,10 @@ app.get('/', (c) => {
                     <span class="risk-priority">01</span><div class="risk-item-main"><strong>덤프 체스트 점검용 발판 부식</strong><span>화장지 4호기 · 공무팀 보전파트</span></div><span class="risk-score score-critical">12</span><span class="risk-owner"><i class="author-avatar avatar-violet">김</i><span>김현구</span></span><span class="due-date overdue">기한 초과</span><button class="risk-arrow" type="button" aria-label="상세 보기">↗</button>
                   </article>
                   <article class="risk-item">
-                    <span class="risk-priority">02</span><div class="risk-item-main"><strong>컨베이어 구동부 방호덮개 이탈</strong><span>초지 공정 · 제지 1팀</span></div><span class="risk-score score-high">10</span><span class="risk-owner"><i class="author-avatar avatar-teal">김</i><span>김민수</span></span><span class="due-date">10월 22일</span><button class="risk-arrow" type="button" aria-label="상세 보기">↗</button>
+                    <span class="risk-priority">02</span><div class="risk-item-main"><strong>컨베이어 구동부 방호덮개 이탈</strong><span>제지생산1팀 · 초지</span></div><span class="risk-score score-high">10</span><span class="risk-owner"><i class="author-avatar avatar-teal">김</i><span>김민수</span></span><span class="due-date">10월 22일</span><button class="risk-arrow" type="button" aria-label="상세 보기">↗</button>
                   </article>
                   <article class="risk-item">
-                    <span class="risk-priority">03</span><div class="risk-item-main"><strong>약품 투입구 주변 누출 흔적</strong><span>폐수처리 공정 · 환경에너지팀</span></div><span class="risk-score score-high">8</span><span class="risk-owner"><i class="author-avatar avatar-blue">이</i><span>이수진</span></span><span class="due-date">10월 25일</span><button class="risk-arrow" type="button" aria-label="상세 보기">↗</button>
+                    <span class="risk-priority">03</span><div class="risk-item-main"><strong>약품 투입구 주변 누출 흔적</strong><span>환경에너지팀 · 환경</span></div><span class="risk-score score-high">8</span><span class="risk-owner"><i class="author-avatar avatar-blue">이</i><span>이수진</span></span><span class="due-date">10월 25일</span><button class="risk-arrow" type="button" aria-label="상세 보기">↗</button>
                   </article>
                 </div>
                 <div class="risk-panel-footer"><span class="risk-footer-check"><Icon name="check" /></span><span><b>작은 개선도 큰 사고를 막습니다.</b> 조치 결과를 사진과 함께 기록해 주세요.</span><button type="button" id="open-actions">조치 현황 보기 <span>→</span></button></div>
@@ -214,8 +289,8 @@ app.get('/', (c) => {
                 <div class="approval-total"><strong>5</strong><span>건의 확인 대기</span><span class="approval-total-icon"><Icon name="clipboard" /></span></div>
                 <div class="approval-list">
                   <a class="approval-row" href="#review"><span class="approval-type approval-type-review">검토</span><span class="approval-info"><strong>화장지 4호기 설비 정비</strong><small>공무팀 · 김현구 · 2시간 전</small></span><Icon name="up" /></a>
-                  <a class="approval-row" href="#review"><span class="approval-type approval-type-approve">승인</span><span class="approval-info"><strong>원료 투입 공정 정기평가</strong><small>제지 2팀 · 박정우 · 어제</small></span><Icon name="up" /></a>
-                  <a class="approval-row" href="#review"><span class="approval-type approval-type-review">검토</span><span class="approval-info"><strong>신규 포장라인 위험성평가</strong><small>생활품질관리팀 · 박서연 · 어제</small></span><Icon name="up" /></a>
+                  <a class="approval-row" href="#review"><span class="approval-type approval-type-approve">승인</span><span class="approval-info"><strong>원료 투입 공정 정기평가</strong><small>제지생산2팀 · 박정우 · 어제</small></span><Icon name="up" /></a>
+                  <a class="approval-row" href="#review"><span class="approval-type approval-type-review">검토</span><span class="approval-info"><strong>신규 포장라인 위험성평가</strong><small>화장지생산팀 · 박서연 · 어제</small></span><Icon name="up" /></a>
                 </div>
                 <button class="approval-all-button" type="button" id="review-all">대기 항목 모두 보기 <span>→</span></button>
               </section>

@@ -181,6 +181,29 @@
     }
   })
 
+  document.querySelectorAll('[data-tree-toggle]').forEach((toggle) => {
+    toggle.addEventListener('click', () => {
+      const expanded = toggle.getAttribute('aria-expanded') === 'true'
+      const panel = document.getElementById(toggle.getAttribute('aria-controls'))
+      toggle.setAttribute('aria-expanded', String(!expanded))
+      toggle.classList.toggle('is-open', !expanded)
+      if (panel) panel.hidden = expanded
+    })
+  })
+
+  document.querySelectorAll('[data-workspace-selection]').forEach((item) => {
+    item.addEventListener('click', () => {
+      document.querySelectorAll('[data-workspace-selection]').forEach((entry) => entry.classList.remove('selected'))
+      item.classList.add('selected')
+      const selection = item.dataset.workspaceSelection
+      const breadcrumb = document.querySelector('#breadcrumb-selection')
+      if (breadcrumb) breadcrumb.textContent = selection.split(' / ').slice(-2).join(' / ')
+      const formatLabel = item.dataset.documentFormat === 'XLSX' ? '유해위험요인 엑셀' : '개선요청 PPT'
+      toast(`${selection} · ${formatLabel} 분류를 선택했습니다.`)
+      if (window.innerWidth <= 660) document.querySelector('#sidebar')?.classList.remove('mobile-open')
+    })
+  })
+
   document.querySelector('#export-button')?.addEventListener('click', () => toast('연도별 엑셀 내보내기는 데이터 기능 연동 후 제공됩니다.'))
   document.querySelector('#status-filter')?.addEventListener('click', () => toast('상태별 필터는 다음 기능 구현 단계에서 연결됩니다.'))
   document.querySelector('#open-actions')?.addEventListener('click', () => toast('개선조치 관리 목록으로 이동합니다. (샘플 화면)'))
