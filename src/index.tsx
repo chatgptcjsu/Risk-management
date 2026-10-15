@@ -49,11 +49,73 @@ const departmentFolders = [
 ]
 
 const assessmentFolders = [
-  { id: 'regular', name: '정기 위험성평가', format: 'XLSX', description: '유해위험요인 엑셀' },
-  { id: 'adhoc', name: '수시 위험성평가', format: 'PPTX', description: '개선요청 양식' },
+  {
+    id: 'regular',
+    name: '정기 위험성평가',
+    description: '위험요인 평가와 개선요청 관리',
+    subfolders: [
+      { id: 'hazards', name: '위험성평가 (유해위험요인)' },
+      { id: 'improvements', name: '개선요청 건' },
+    ],
+  },
+  {
+    id: 'adhoc',
+    name: '수시 위험성평가',
+    description: '사유 발생 시 평가',
+  },
 ]
 
 const assessmentYears = [2026, 2025, 2024]
+
+function TeamFileUpload({ kind, path }: { kind: 'xlsx' | 'pptx'; path: string }) {
+  const label = kind === 'xlsx' ? '엑셀 업로드' : 'PPT 업로드'
+  const accept = kind === 'xlsx' ? '.xlsx,.xls' : '.pptx,.ppt'
+  return (
+    <label class="tree-file-upload" title={label} aria-label={`${path} ${label}`}>
+      <Icon name="plus" />
+      <span>파일</span>
+      <input type="file" accept={accept} multiple data-regular-upload={kind} data-upload-path={path} />
+    </label>
+  )
+}
+
+function TeamTree({ branchId, parentPath, uploadType }: { branchId: string; parentPath: string; uploadType?: 'xlsx' | 'pptx' }) {
+  return (
+    <>
+      {departmentFolders.map((department, departmentIndex) => {
+        const departmentId = `${branchId}-team-${departmentIndex}`
+        const departmentPath = `${parentPath} / ${department.name}`
+        return department.processes.length > 0 ? (
+          <div class="tree-team-group" key={departmentId}>
+            <button class="tree-toggle tree-team-toggle" type="button" data-tree-toggle={`department-${departmentId}`} aria-expanded="false" aria-controls={`department-content-${departmentId}`}>
+              <span class="tree-team-marker"></span><span class="tree-team-name">{department.name}</span><Icon name="down" className="tree-chevron" />
+            </button>
+            <div class="tree-process-content" id={`department-content-${departmentId}`} hidden>
+              {department.processes.map((process) => {
+                const processPath = `${departmentPath} / ${process}`
+                return (
+                  <div class="tree-process-entry" key={`${departmentId}-${process}`}>
+                    <button class="tree-selectable tree-process-leaf" type="button" data-workspace-selection={processPath}>
+                      <span class="tree-process-marker"></span><span>{process}</span>
+                    </button>
+                    {uploadType ? <TeamFileUpload kind={uploadType} path={processPath} /> : null}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        ) : (
+          <div class="tree-team-entry" key={departmentId}>
+            <button class="tree-selectable tree-team-leaf" type="button" data-workspace-selection={departmentPath}>
+              <span class="tree-team-marker"></span><span>{department.name}</span>
+            </button>
+            {uploadType ? <TeamFileUpload kind={uploadType} path={departmentPath} /> : null}
+          </div>
+        )
+      })}
+    </>
+  )
+}
 
 app.get('/', (c) => {
   return c.render(
@@ -99,33 +161,27 @@ app.get('/', (c) => {
                   return (
                     <div class="tree-category-group" key={categoryId}>
                       <button class="tree-toggle tree-category-toggle" type="button" data-tree-toggle={`category-${categoryId}`} aria-expanded="false" aria-controls={`category-content-${categoryId}`}>
-                        <span class={`document-format format-${folder.id}`}>{folder.format}</span>
+                        <span class={`tree-category-icon category-icon-${folder.id}`}><Icon name={folder.id === 'regular' ? 'clipboard' : 'alert'} /></span>
                         <span class="tree-category-copy"><strong>{folder.name}</strong><small>{folder.description}</small></span>
                         <Icon name="down" className="tree-chevron" />
                       </button>
                       <div class="tree-category-content" id={`category-content-${categoryId}`} hidden>
-                        {departmentFolders.map((department, departmentIndex) => {
-                          const departmentId = `${categoryId}-team-${departmentIndex}`
-                          const departmentPath = `${year}년 / ${folder.name} / ${department.name}`
-                          return department.processes.length > 0 ? (
-                            <div class="tree-team-group" key={departmentId}>
-                              <button class="tree-toggle tree-team-toggle" type="button" data-tree-toggle={`department-${departmentId}`} aria-expanded="false" aria-controls={`department-content-${departmentId}`}>
-                                <span class="tree-team-marker"></span><span class="tree-team-name">{department.name}</span><Icon name="down" className="tree-chevron" />
+                        {folder.subfolders ? folder.subfolders.map((subfolder) => {
+                          const subfolderId = `${categoryId}-${subfolder.id}`
+                          const subfolderPath = `${year}년 / ${folder.name} / ${subfolder.name}`
+                          return (
+                            <div class="tree-subfolder-group" key={subfolderId}>
+                              <button class="tree-toggle tree-subfolder-toggle" type="button" data-tree-toggle={`subfolder-${subfolderId}`} aria-expanded="false" aria-controls={`subfolder-content-${subfolderId}`}>
+                                <span class="tree-subfolder-marker"></span><span>{subfolder.name}</span><Icon name="down" className="tree-chevron" />
                               </button>
-                              <div class="tree-process-content" id={`department-content-${departmentId}`} hidden>
-                                {department.processes.map((process) => (
-                                  <button class="tree-selectable tree-process-leaf" type="button" data-workspace-selection={`${departmentPath} / ${process}`} data-category-name={folder.name} data-document-format={folder.format} key={`${departmentId}-${process}`}>
-                                    <span class="tree-process-marker"></span><span>{process}</span>
-                                  </button>
-                                ))}
+                              <div class="tree-subfolder-content" id={`subfolder-content-${subfolderId}`} hidden>
+                                <TeamTree branchId={subfolderId} parentPath={subfolderPath} uploadType={subfolder.id === 'hazards' ? 'xlsx' : 'pptx'} />
                               </div>
                             </div>
-                          ) : (
-                            <button class="tree-selectable tree-team-leaf" type="button" data-workspace-selection={departmentPath} data-category-name={folder.name} data-document-format={folder.format} key={departmentId}>
-                              <span class="tree-team-marker"></span><span>{department.name}</span>
-                            </button>
                           )
-                        })}
+                        }) : (
+                          <TeamTree branchId={categoryId} parentPath={`${year}년 / ${folder.name}`} />
+                        )}
                       </div>
                     </div>
                   )
@@ -182,6 +238,13 @@ app.get('/', (c) => {
               <p>현장의 위험을 먼저 발견하고, 함께 개선해 나가세요.</p>
             </div>
             <div class="heading-actions">
+              <div class="dashboard-size-control" role="group" aria-label="대시보드 크기 조절">
+                <span class="size-control-label">크기</span>
+                <button class="size-step-button" id="dashboard-size-decrease" type="button" aria-label="대시보드 축소">−</button>
+                <input id="dashboard-size-range" type="range" min="85" max="115" step="5" value="100" aria-label="대시보드 크기" />
+                <output id="dashboard-size-value" for="dashboard-size-range">100%</output>
+                <button class="size-step-button" id="dashboard-size-increase" type="button" aria-label="대시보드 확대">+</button>
+              </div>
               <button class="button button-secondary" id="export-button" type="button"><Icon name="download" /> 내보내기</button>
               <button class="button button-primary" id="new-assessment-button" type="button"><Icon name="plus" /> 새 평가 만들기</button>
             </div>

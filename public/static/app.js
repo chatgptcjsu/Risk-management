@@ -158,6 +158,44 @@
     })
   })
 
+  const dashboardScaleInput = document.querySelector('#dashboard-size-range')
+  const dashboardScaleOutput = document.querySelector('#dashboard-size-value')
+  const dashboardContent = document.querySelector('.page-content')
+  const decreaseDashboardButton = document.querySelector('#dashboard-size-decrease')
+  const increaseDashboardButton = document.querySelector('#dashboard-size-increase')
+
+  const updateDashboardSize = (value, persist = true) => {
+    const scale = Math.max(85, Math.min(115, Math.round(Number(value) / 5) * 5))
+    if (!dashboardScaleInput || !dashboardContent) return
+    const scaleFactor = scale / 100
+    dashboardScaleInput.value = String(scale)
+    dashboardContent.style.setProperty('--dashboard-scale', String(scaleFactor))
+    if (dashboardScaleOutput) dashboardScaleOutput.textContent = `${scale}%`
+    if (decreaseDashboardButton) decreaseDashboardButton.disabled = scale <= 85
+    if (increaseDashboardButton) increaseDashboardButton.disabled = scale >= 115
+    if (persist) {
+      try { localStorage.setItem('safety-dashboard-scale', String(scale)) } catch (_) { /* storage may be blocked */ }
+    }
+  }
+
+  if (dashboardScaleInput) {
+    let savedScale = 100
+    try { savedScale = Number(localStorage.getItem('safety-dashboard-scale')) || 100 } catch (_) { /* use default scale */ }
+    updateDashboardSize(savedScale, false)
+    dashboardScaleInput.addEventListener('input', () => updateDashboardSize(dashboardScaleInput.value))
+  }
+  decreaseDashboardButton?.addEventListener('click', () => updateDashboardSize(Number(dashboardScaleInput?.value || 100) - 5))
+  increaseDashboardButton?.addEventListener('click', () => updateDashboardSize(Number(dashboardScaleInput?.value || 100) + 5))
+
+  document.querySelectorAll('[data-regular-upload]').forEach((input) => {
+    input.addEventListener('change', () => {
+      const files = Array.from(input.files || [])
+      if (!files.length) return
+      const format = input.dataset.regularUpload === 'xlsx' ? '유해위험요인 엑셀' : '개선요청 PPT'
+      toast(`${input.dataset.uploadPath} · ${format} 파일을 선택했습니다. 저장은 서버 연동 후 활성화됩니다.`)
+    })
+  })
+
   document.querySelectorAll('.filter-tab').forEach((button) => {
     button.addEventListener('click', () => {
       document.querySelectorAll('.filter-tab').forEach(tab => tab.classList.remove('selected'))
@@ -198,8 +236,7 @@
       const selection = item.dataset.workspaceSelection
       const breadcrumb = document.querySelector('#breadcrumb-selection')
       if (breadcrumb) breadcrumb.textContent = selection.split(' / ').slice(-2).join(' / ')
-      const formatLabel = item.dataset.documentFormat === 'XLSX' ? '유해위험요인 엑셀' : '개선요청 PPT'
-      toast(`${selection} · ${formatLabel} 분류를 선택했습니다.`)
+      toast(`${selection} 분류를 선택했습니다.`)
       if (window.innerWidth <= 660) document.querySelector('#sidebar')?.classList.remove('mobile-open')
     })
   })
