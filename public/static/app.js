@@ -60,6 +60,31 @@
   const newAssessmentButton = document.querySelector('#new-assessment-button')
   newAssessmentButton?.addEventListener('click', () => {
     const form = document.createElement('div')
+    form.className = 'assessment-wizard'
+    const wizardState = { step: 0, beforeScore: '', afterScore: '', photoUrls: [] }
+    const stepLabels = ['기본정보', '위험요인·대책', '위험도 평가', '최종 확인']
+    const stepper = document.createElement('div')
+    stepper.className = 'wizard-stepper'
+    stepper.setAttribute('aria-label', '평가 작성 단계')
+    const stepButtons = stepLabels.map((label, index) => {
+      const item = document.createElement('div')
+      item.className = 'wizard-step'
+      item.innerHTML = `<span class="wizard-step-number">${index + 1}</span><span class="wizard-step-label"></span>`
+      item.querySelector('.wizard-step-label').textContent = label
+      stepper.append(item)
+      return item
+    })
+    form.append(stepper)
+
+    const pages = stepLabels.map((label, index) => {
+      const page = document.createElement('section')
+      page.className = 'wizard-page'
+      page.setAttribute('aria-label', `${index + 1}단계 ${label}`)
+      page.hidden = index !== 0
+      form.append(page)
+      return page
+    })
+
     const assessmentType = document.createElement('select')
     assessmentType.innerHTML = '<option value="정기">정기 평가 · 연 1회</option><option value="수시">수시 평가 · 사유 발생</option>'
     const team = document.createElement('input')
@@ -68,55 +93,289 @@
     process.placeholder = '예: 화장지 4호기'
     const reason = document.createElement('select')
     reason.innerHTML = '<option value="">사유 선택</option><option>사고 발생</option><option>공정 변경</option><option>신규 공정·설비 추가</option><option>정비·보수</option><option>작업방법 변경</option><option>기타</option>'
-    const date = document.createElement('input')
-    date.type = 'date'
-    date.value = new Date().toISOString().slice(0, 10)
-    const typeField = field('평가 유형', assessmentType)
+    const assessmentDate = document.createElement('input')
+    assessmentDate.type = 'date'
+    assessmentDate.value = new Date().toISOString().slice(0, 10)
+    const participants = document.createElement('textarea')
+    participants.placeholder = '참여자 이름을 직접 입력해 주세요. 여러 명은 쉼표 또는 줄바꿈으로 구분할 수 있습니다.'
+    participants.rows = 2
     const reasonField = field('수시 평가 사유', reason)
     const reasonHelp = document.createElement('small')
     reasonHelp.className = 'form-help'
     reasonHelp.textContent = '정기 평가를 선택하면 사유 입력은 생략할 수 있습니다.'
     reasonField.append(reasonHelp)
+    reasonField.hidden = true
     assessmentType.addEventListener('change', () => {
       reasonField.hidden = assessmentType.value !== '수시'
     })
-    reasonField.hidden = true
-    form.append(
-      typeField,
+    pages[0].append(
+      field('평가 유형', assessmentType),
       field('부서 / 팀', team),
       field('공정명', process),
       reasonField,
-      field('평가 기준일', date),
+      field('평가 기준일', assessmentDate),
+      field('위험성평가 참여자', participants, '이름을 직접 입력해 주세요.'),
     )
-    showModal('새 위험성평가 만들기', '평가 기본 정보를 입력해 주세요. 세부 위험요인은 다음 단계에서 작성합니다.', form, '평가 시작', (backdrop) => {
-      if (!team.value.trim() || !process.value.trim()) {
-        toast('부서와 공정명을 입력해 주세요.')
+
+    const hazard = document.createElement('textarea')
+    hazard.placeholder = '예: 회전 중인 롤러에 장갑이나 작업복이 말려 들어갈 위험'
+    hazard.rows = 3
+    const accidentType = document.createElement('textarea')
+    accidentType.placeholder = '예: 끼임, 협착, 찰과상'
+    accidentType.rows = 2
+    const improvement = document.createElement('textarea')
+    improvement.placeholder = '위험을 줄이기 위해 어떤 조치를 할지 구체적으로 입력해 주세요.'
+    improvement.rows = 4
+    const improvementDate = document.createElement('input')
+    improvementDate.type = 'date'
+    const photoInput = document.createElement('input')
+    photoInput.type = 'file'
+    photoInput.accept = 'image/*'
+    photoInput.multiple = true
+    photoInput.setAttribute('aria-label', '개선 전 사진 선택')
+    const photoLabel = document.createElement('div')
+    photoLabel.className = 'photo-picker'
+    photoLabel.tabIndex = 0
+    photoLabel.setAttribute('role', 'button')
+    photoLabel.setAttribute('aria-label', '개선 전 사진 추가')
+    photoLabel.innerHTML = '<span class="photo-picker-icon">＋</span><span><strong>개선 전 사진 추가</strong><small>사진 파일을 선택하면 미리보기가 표시됩니다.</small></span>'
+    photoLabel.append(photoInput)
+    photoLabel.addEventListener('click', (event) => {
+      if (event.target !== photoInput) photoInput.click()
+    })
+    photoLabel.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault()
+        photoInput.click()
+      }
+    })
+    const photoPreview = document.createElement('div')
+    photoPreview.className = 'photo-preview-grid'
+    photoInput.addEventListener('change', () => {
+      wizardState.photoUrls.forEach(url => URL.revokeObjectURL(url))
+      wizardState.photoUrls = Array.from(photoInput.files || []).map(file => URL.createObjectURL(file))
+      photoPreview.replaceChildren()
+      Array.from(photoInput.files || []).forEach((file, index) => {
+        const preview = document.createElement('figure')
+        preview.className = 'photo-preview'
+        const image = document.createElement('img')
+        image.src = wizardState.photoUrls[index]
+        image.alt = `개선 전 사진 ${index + 1}: ${file.name}`
+        const caption = document.createElement('figcaption')
+        caption.textContent = file.name
+        preview.append(image, caption)
+        photoPreview.append(preview)
+      })
+    })
+    pages[1].append(
+      field('위험요인', hazard, '작업 중 어떤 위험이 발생할 수 있는지 작성합니다.'),
+      field('예상되는 재해형태', accidentType, '예: 끼임, 넘어짐, 추락, 화상 등'),
+      field('개선(예방)대책', improvement, '위험요인을 줄이거나 제거하기 위한 조치를 작성합니다.'),
+      field('개선 예정일', improvementDate, '날짜를 클릭하면 달력에서 선택할 수 있습니다.'),
+      field('개선 전 사진', photoLabel, '여러 장을 선택할 수 있습니다.'),
+      photoPreview,
+    )
+
+    const scoreSelection = (label, color, stateKey, disabled = false) => {
+      const group = document.createElement('div')
+      group.className = `score-group score-group-${color}`
+      const title = document.createElement('div')
+      title.className = 'score-group-title'
+      title.textContent = label
+      const choices = document.createElement('div')
+      choices.className = 'score-choices'
+      const display = document.createElement('div')
+      display.className = `risk-score-circle ${color}-circle`
+      display.hidden = true
+      display.setAttribute('aria-live', 'polite')
+      const buttons = []
+      ;['1', '2', '3'].forEach(value => {
+        const button = document.createElement('button')
+        button.type = 'button'
+        button.className = 'score-choice'
+        button.textContent = value
+        button.setAttribute('aria-label', `${label} ${value} 선택`)
+        button.disabled = disabled
+        button.addEventListener('click', () => {
+          if (stateKey === 'afterScore' && !wizardState.beforeScore) {
+            toast('개선 전 위험등급을 먼저 선택해 주세요.')
+            return
+          }
+          wizardState[stateKey] = value
+          display.textContent = value
+          display.hidden = false
+          buttons.forEach(option => option.classList.toggle('selected', option === button))
+          if (stateKey === 'beforeScore') {
+            afterScoreGroup.querySelectorAll('.score-choice').forEach(option => { option.disabled = false })
+          }
+          updateRiskGrades()
+        })
+        buttons.push(button)
+        choices.append(button)
+      })
+      group.append(title, choices, display)
+      return group
+    }
+    const scoreIntro = document.createElement('p')
+    scoreIntro.className = 'wizard-instruction'
+    scoreIntro.textContent = '먼저 개선 전(빨간색)을 선택한 뒤 개선 후(초록색)를 선택하세요. 3번 버튼은 두 동그라미를 모두 지웁니다.'
+    const scoreCards = document.createElement('div')
+    scoreCards.className = 'score-cards'
+    const beforeScoreGroup = scoreSelection('개선 전 위험성', 'red', 'beforeScore')
+    const afterScoreGroup = scoreSelection('개선 후 위험성', 'green', 'afterScore', true)
+    const resetScores = document.createElement('button')
+    resetScores.type = 'button'
+    resetScores.className = 'score-reset-button'
+    resetScores.textContent = '3번 · 동그라미 모두 지우기'
+    const beforeGrade = document.createElement('input')
+    beforeGrade.readOnly = true
+    beforeGrade.placeholder = '빨간색 숫자 자동 입력'
+    const afterGrade = document.createElement('input')
+    afterGrade.readOnly = true
+    afterGrade.placeholder = '초록색 숫자 자동 입력'
+    const updateRiskGrades = () => {
+      beforeGrade.value = wizardState.beforeScore
+      afterGrade.value = wizardState.afterScore
+    }
+    const clearScoreGroup = (group, color) => {
+      group.querySelector('.risk-score-circle').hidden = true
+      group.querySelector('.risk-score-circle').textContent = ''
+      group.querySelectorAll('.score-choice').forEach(button => button.classList.remove('selected'))
+    }
+    resetScores.addEventListener('click', () => {
+      wizardState.beforeScore = ''
+      wizardState.afterScore = ''
+      clearScoreGroup(beforeScoreGroup, 'red')
+      clearScoreGroup(afterScoreGroup, 'green')
+      afterScoreGroup.querySelectorAll('.score-choice').forEach(button => { button.disabled = true })
+      updateRiskGrades()
+      toast('개선 전·후 위험도 선택을 모두 지웠습니다.')
+    })
+    scoreCards.append(beforeScoreGroup, afterScoreGroup)
+    pages[2].append(
+      scoreIntro,
+      scoreCards,
+      resetScores,
+      document.createElement('hr'),
+      field('개선 전 위험등급', beforeGrade, '개선 전 빨간색 숫자를 선택하면 자동으로 입력됩니다.'),
+      field('개선 후 위험등급', afterGrade, '개선 후 초록색 숫자를 선택하면 자동으로 입력됩니다.'),
+    )
+
+    const summary = document.createElement('dl')
+    summary.className = 'assessment-summary'
+    const summaryItems = []
+    ;['평가 유형', '부서 / 팀', '공정명', '평가 기준일', '참여자', '위험요인', '재해형태', '개선(예방)대책', '개선 예정일', '개선 전 위험등급', '개선 후 위험등급', '개선 전 사진'].forEach(label => {
+      const row = document.createElement('div')
+      row.className = 'summary-item'
+      const term = document.createElement('dt')
+      term.textContent = label
+      const detail = document.createElement('dd')
+      detail.textContent = '—'
+      row.append(term, detail)
+      summary.append(row)
+      summaryItems.push(detail)
+    })
+    pages[3].append(summary)
+    const refreshSummary = () => {
+      const values = [
+        assessmentType.value,
+        team.value.trim(),
+        process.value.trim(),
+        assessmentDate.value,
+        participants.value.trim(),
+        hazard.value.trim(),
+        accidentType.value.trim(),
+        improvement.value.trim(),
+        improvementDate.value,
+        wizardState.beforeScore,
+        wizardState.afterScore,
+        Array.from(photoInput.files || []).map(file => file.name).join(', '),
+      ]
+      summaryItems.forEach((item, index) => { item.textContent = values[index] || (index === 10 ? '등록된 사진 없음' : '—') })
+    }
+
+    const modalTitle = '새 위험성평가 만들기'
+    showModal(modalTitle, '단계별로 입력하고, 마지막에 내용을 확인하세요.', form, '다음 단계', (backdrop) => {
+      if (wizardState.step === 0) {
+        if (!team.value.trim() || !process.value.trim()) {
+          toast('부서와 공정명을 입력해 주세요.')
+          return
+        }
+        if (assessmentType.value === '수시' && !reason.value) {
+          toast('수시 평가 사유를 선택해 주세요.')
+          return
+        }
+      }
+      if (wizardState.step === 1 && (!hazard.value.trim() || !accidentType.value.trim() || !improvement.value.trim())) {
+        toast('위험요인, 재해형태, 개선(예방)대책을 입력해 주세요.')
         return
       }
-      if (assessmentType.value === '수시' && !reason.value) {
-        toast('수시 평가 사유를 선택해 주세요.')
+      if (wizardState.step === 2 && (!wizardState.beforeScore || !wizardState.afterScore)) {
+        toast('개선 전 빨간색, 개선 후 초록색 위험도를 순서대로 선택해 주세요.')
         return
       }
+      if (wizardState.step < 3) {
+        wizardState.step += 1
+        if (wizardState.step === 3) refreshSummary()
+        pages.forEach((page, index) => { page.hidden = index !== wizardState.step })
+        stepButtons.forEach((item, index) => {
+          item.classList.toggle('active', index === wizardState.step)
+          item.classList.toggle('complete', index < wizardState.step)
+        })
+        backdrop.querySelector('.modal-submit').textContent = wizardState.step === 3 ? '평가 저장' : '다음 단계'
+        previousButton.hidden = wizardState.step === 0
+        const labels = ['기본 정보와 참여자를 입력해 주세요.', '위험요인, 재해형태, 대책과 개선 전 사진을 입력해 주세요.', '개선 전 빨간색을 먼저 선택하고, 개선 후 초록색을 선택해 주세요.', '입력한 내용을 확인한 뒤 평가 초안을 저장합니다.']
+        backdrop.querySelector('.modal-head p').textContent = labels[wizardState.step]
+        backdrop.querySelector('.modal-body').scrollTop = 0
+        return
+      }
+
       const tbody = document.querySelector('#assessment-table-body')
       const row = document.createElement('tr')
       row.dataset.type = assessmentType.value === '정기' ? 'regular' : 'adhoc'
-      row.dataset.search = `${team.value} ${process.value} ${assessmentType.value}`
+      row.dataset.search = `${team.value} ${process.value} ${assessmentType.value} ${hazard.value} ${accidentType.value} ${participants.value}`
       row.innerHTML = `
         <td><div class="assessment-name"><span class="assessment-symbol symbol-mint"></span><span><strong></strong><small></small></span></div></td>
         <td><span class="type-badge"></span></td><td><span class="author-cell"><i class="author-avatar avatar-teal">김</i> 김안전</span></td>
         <td><div class="progress-cell"><div class="table-progress"><span style="width:0%"></span></div><small>0%</small></div></td>
-        <td><span class="risk-count">-</span></td><td><span class="status-badge status-progress"><i></i> 작성 중</span></td><td><button class="row-menu" type="button" aria-label="평가 메뉴">···</button></td>`
+        <td><span class="risk-count risk-high"></span></td><td><span class="status-badge status-progress"><i></i> 작성 중</span></td><td><button class="row-menu" type="button" aria-label="평가 메뉴">···</button></td>`
       row.querySelector('.assessment-symbol').textContent = team.value.trim().slice(0, 1)
       row.querySelector('.assessment-name strong').textContent = process.value.trim() + ' 위험성평가'
-      row.querySelector('.assessment-name small').textContent = team.value.trim() + ' · ' + process.value.trim()
+      row.querySelector('.assessment-name small').textContent = `${team.value.trim()} · ${process.value.trim()} · 참여자 ${participants.value.trim() || '미입력'}`
+      row.querySelector('.risk-count').textContent = `${wizardState.beforeScore} → ${wizardState.afterScore}`
       const badge = row.querySelector('.type-badge')
       badge.textContent = assessmentType.value
       badge.classList.add(assessmentType.value === '정기' ? 'type-regular' : 'type-adhoc')
       tbody.prepend(row)
       document.querySelector('#total-count').textContent = String(Number(document.querySelector('#total-count').textContent) + 1)
+      wizardState.photoUrls.forEach(url => URL.revokeObjectURL(url))
       backdrop.remove()
-      toast(`${process.value.trim()} 평가 초안을 만들었습니다. (샘플 화면)`)
+      toast(`${process.value.trim()} 평가 초안을 저장했습니다. (현재 브라우저 미리보기)`)
     })
+    document.querySelector('.modal-card')?.classList.add('assessment-modal-card')
+    const previousButton = document.createElement('button')
+    previousButton.type = 'button'
+    previousButton.className = 'button button-secondary wizard-previous'
+    previousButton.textContent = '이전 단계'
+    previousButton.hidden = true
+    previousButton.addEventListener('click', () => {
+      if (wizardState.step === 0) return
+      wizardState.step -= 1
+      pages.forEach((page, index) => { page.hidden = index !== wizardState.step })
+      stepButtons.forEach((item, index) => {
+        item.classList.toggle('active', index === wizardState.step)
+        item.classList.toggle('complete', index < wizardState.step)
+      })
+      const backdrop = document.querySelector('.modal-backdrop')
+      if (backdrop) {
+        backdrop.querySelector('.modal-submit').textContent = '다음 단계'
+        backdrop.querySelector('.modal-head p').textContent = ['기본 정보와 참여자를 입력해 주세요.', '위험요인, 재해형태, 대책과 개선 전 사진을 입력해 주세요.', '개선 전 빨간색을 먼저 선택하고, 개선 후 초록색을 선택해 주세요.'][wizardState.step]
+        backdrop.querySelector('.modal-body').scrollTop = 0
+      }
+      previousButton.hidden = wizardState.step === 0
+    })
+    document.querySelector('.modal-foot').prepend(previousButton)
+    stepButtons[0].classList.add('active')
   })
 
   const uploadButton = document.querySelector('#open-photo-modal')
