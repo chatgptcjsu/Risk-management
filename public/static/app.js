@@ -59,281 +59,287 @@
 
   const newAssessmentButton = document.querySelector('#new-assessment-button')
   newAssessmentButton?.addEventListener('click', () => {
-    const form = document.createElement('div')
-    form.className = 'assessment-wizard'
-    const wizardState = { step: 0, beforeScore: '', afterScore: '', photoUrls: [] }
-    const stepLabels = ['기본정보', '위험요인·대책', '위험도 평가', '최종 확인']
-    const stepper = document.createElement('div')
-    stepper.className = 'wizard-stepper'
-    stepper.setAttribute('aria-label', '평가 작성 단계')
-    const stepButtons = stepLabels.map((label, index) => {
-      const item = document.createElement('div')
-      item.className = 'wizard-step'
-      item.innerHTML = `<span class="wizard-step-number">${index + 1}</span><span class="wizard-step-label"></span>`
-      item.querySelector('.wizard-step-label').textContent = label
-      stepper.append(item)
-      return item
-    })
-    form.append(stepper)
-
-    const pages = stepLabels.map((label, index) => {
-      const page = document.createElement('section')
-      page.className = 'wizard-page'
-      page.setAttribute('aria-label', `${index + 1}단계 ${label}`)
-      page.hidden = index !== 0
-      form.append(page)
-      return page
-    })
-
+    const intro = document.createElement('div')
     const assessmentType = document.createElement('select')
     assessmentType.innerHTML = '<option value="정기">정기 평가 · 연 1회</option><option value="수시">수시 평가 · 사유 발생</option>'
     const team = document.createElement('input')
     team.placeholder = '예: 공무팀 보전파트'
     const process = document.createElement('input')
     process.placeholder = '예: 화장지 4호기'
-    const reason = document.createElement('select')
-    reason.innerHTML = '<option value="">사유 선택</option><option>사고 발생</option><option>공정 변경</option><option>신규 공정·설비 추가</option><option>정비·보수</option><option>작업방법 변경</option><option>기타</option>'
     const assessmentDate = document.createElement('input')
     assessmentDate.type = 'date'
     assessmentDate.value = new Date().toISOString().slice(0, 10)
-    const participants = document.createElement('textarea')
-    participants.placeholder = '참여자 이름을 직접 입력해 주세요. 여러 명은 쉼표 또는 줄바꿈으로 구분할 수 있습니다.'
-    participants.rows = 2
-    const reasonField = field('수시 평가 사유', reason)
-    const reasonHelp = document.createElement('small')
-    reasonHelp.className = 'form-help'
-    reasonHelp.textContent = '정기 평가를 선택하면 사유 입력은 생략할 수 있습니다.'
-    reasonField.append(reasonHelp)
+    const reason = document.createElement('select')
+    reason.innerHTML = '<option value="">사유 선택</option><option>사고 발생</option><option>공정 변경</option><option>신규 공정·설비 추가</option><option>정비·보수</option><option>작업방법 변경</option><option>기타</option>'
+    const reasonField = field('수시 평가 사유', reason, '정기 평가는 입력하지 않아도 됩니다.')
     reasonField.hidden = true
-    assessmentType.addEventListener('change', () => {
-      reasonField.hidden = assessmentType.value !== '수시'
-    })
-    pages[0].append(
+    assessmentType.addEventListener('change', () => { reasonField.hidden = assessmentType.value !== '수시' })
+    intro.className = 'ppt-assessment-start'
+    intro.append(
       field('평가 유형', assessmentType),
       field('부서 / 팀', team),
       field('공정명', process),
+      field('평가일', assessmentDate),
       reasonField,
-      field('평가 기준일', assessmentDate),
-      field('위험성평가 참여자', participants, '이름을 직접 입력해 주세요.'),
     )
 
-    const hazard = document.createElement('textarea')
-    hazard.placeholder = '예: 회전 중인 롤러에 장갑이나 작업복이 말려 들어갈 위험'
-    hazard.rows = 3
-    const accidentType = document.createElement('textarea')
-    accidentType.placeholder = '예: 끼임, 협착, 찰과상'
-    accidentType.rows = 2
-    const improvement = document.createElement('textarea')
-    improvement.placeholder = '위험을 줄이기 위해 어떤 조치를 할지 구체적으로 입력해 주세요.'
-    improvement.rows = 4
-    const improvementDate = document.createElement('input')
-    improvementDate.type = 'date'
-    const photoInput = document.createElement('input')
-    photoInput.type = 'file'
-    photoInput.accept = 'image/*'
-    photoInput.multiple = true
-    photoInput.setAttribute('aria-label', '개선 전 사진 선택')
-    const photoLabel = document.createElement('div')
-    photoLabel.className = 'photo-picker'
-    photoLabel.tabIndex = 0
-    photoLabel.setAttribute('role', 'button')
-    photoLabel.setAttribute('aria-label', '개선 전 사진 추가')
-    photoLabel.innerHTML = '<span class="photo-picker-icon">＋</span><span><strong>개선 전 사진 추가</strong><small>사진 파일을 선택하면 미리보기가 표시됩니다.</small></span>'
-    photoLabel.append(photoInput)
-    photoLabel.addEventListener('click', (event) => {
-      if (event.target !== photoInput) photoInput.click()
-    })
-    photoLabel.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter' || event.key === ' ') {
-        event.preventDefault()
-        photoInput.click()
-      }
-    })
-    const photoPreview = document.createElement('div')
-    photoPreview.className = 'photo-preview-grid'
-    photoInput.addEventListener('change', () => {
-      wizardState.photoUrls.forEach(url => URL.revokeObjectURL(url))
-      wizardState.photoUrls = Array.from(photoInput.files || []).map(file => URL.createObjectURL(file))
-      photoPreview.replaceChildren()
-      Array.from(photoInput.files || []).forEach((file, index) => {
-        const preview = document.createElement('figure')
-        preview.className = 'photo-preview'
-        const image = document.createElement('img')
-        image.src = wizardState.photoUrls[index]
-        image.alt = `개선 전 사진 ${index + 1}: ${file.name}`
-        const caption = document.createElement('figcaption')
-        caption.textContent = file.name
-        preview.append(image, caption)
-        photoPreview.append(preview)
-      })
-    })
-    pages[1].append(
-      field('위험요인', hazard, '작업 중 어떤 위험이 발생할 수 있는지 작성합니다.'),
-      field('예상되는 재해형태', accidentType, '예: 끼임, 넘어짐, 추락, 화상 등'),
-      field('개선(예방)대책', improvement, '위험요인을 줄이거나 제거하기 위한 조치를 작성합니다.'),
-      field('개선 예정일', improvementDate, '날짜를 클릭하면 달력에서 선택할 수 있습니다.'),
-      field('개선 전 사진', photoLabel, '여러 장을 선택할 수 있습니다.'),
-      photoPreview,
-    )
+    let phase = 'start'
+    let formSheet
+    const photoObjectUrls = { before: [], after: [] }
+    let selectedBeforeCell = null
+    let selectedAfterCell = null
+    let beforeRisk = ''
+    let afterRisk = ''
 
-    const scoreSelection = (label, color, stateKey, disabled = false) => {
-      const group = document.createElement('div')
-      group.className = `score-group score-group-${color}`
-      const title = document.createElement('div')
-      title.className = 'score-group-title'
-      title.textContent = label
-      const choices = document.createElement('div')
-      choices.className = 'score-choices'
-      const display = document.createElement('div')
-      display.className = `risk-score-circle ${color}-circle`
-      display.hidden = true
-      display.setAttribute('aria-live', 'polite')
-      const buttons = []
-      ;['1', '2', '3'].forEach(value => {
-        const button = document.createElement('button')
-        button.type = 'button'
-        button.className = 'score-choice'
-        button.textContent = value
-        button.setAttribute('aria-label', `${label} ${value} 선택`)
-        button.disabled = disabled
-        button.addEventListener('click', () => {
-          if (stateKey === 'afterScore' && !wizardState.beforeScore) {
-            toast('개선 전 위험등급을 먼저 선택해 주세요.')
-            return
-          }
-          wizardState[stateKey] = value
-          display.textContent = value
-          display.hidden = false
-          buttons.forEach(option => option.classList.toggle('selected', option === button))
-          if (stateKey === 'beforeScore') {
-            afterScoreGroup.querySelectorAll('.score-choice').forEach(option => { option.disabled = false })
-          }
-          updateRiskGrades()
+    const createPhotoPicker = (kind, label, preview) => {
+      const input = formSheet.querySelector(`[data-photo-input="${kind}"]`)
+      const button = formSheet.querySelector(`[data-photo-button="${kind}"]`)
+      const list = formSheet.querySelector(`[data-photo-preview="${kind}"]`)
+      button.addEventListener('click', () => input.click())
+      input.addEventListener('change', () => {
+        photoObjectUrls[kind].forEach(url => URL.revokeObjectURL(url))
+        photoObjectUrls[kind] = Array.from(input.files || []).map(file => URL.createObjectURL(file))
+        list.replaceChildren()
+        Array.from(input.files || []).forEach((file, index) => {
+          const image = document.createElement('img')
+          image.src = photoObjectUrls[kind][index]
+          image.alt = `${label} 사진 ${index + 1}: ${file.name}`
+          image.title = file.name
+          list.append(image)
         })
-        buttons.push(button)
-        choices.append(button)
+        button.querySelector('small').textContent = input.files?.length ? `${input.files.length}장 선택 · 다시 눌러 변경` : preview
       })
-      group.append(title, choices, display)
-      return group
     }
-    const scoreIntro = document.createElement('p')
-    scoreIntro.className = 'wizard-instruction'
-    scoreIntro.textContent = '먼저 개선 전(빨간색)을 선택한 뒤 개선 후(초록색)를 선택하세요. 3번 버튼은 두 동그라미를 모두 지웁니다.'
-    const scoreCards = document.createElement('div')
-    scoreCards.className = 'score-cards'
-    const beforeScoreGroup = scoreSelection('개선 전 위험성', 'red', 'beforeScore')
-    const afterScoreGroup = scoreSelection('개선 후 위험성', 'green', 'afterScore', true)
-    const resetScores = document.createElement('button')
-    resetScores.type = 'button'
-    resetScores.className = 'score-reset-button'
-    resetScores.textContent = '3번 · 동그라미 모두 지우기'
-    const beforeGrade = document.createElement('input')
-    beforeGrade.readOnly = true
-    beforeGrade.placeholder = '빨간색 숫자 자동 입력'
-    const afterGrade = document.createElement('input')
-    afterGrade.readOnly = true
-    afterGrade.placeholder = '초록색 숫자 자동 입력'
-    const updateRiskGrades = () => {
-      beforeGrade.value = wizardState.beforeScore
-      afterGrade.value = wizardState.afterScore
-    }
-    const clearScoreGroup = (group, color) => {
-      group.querySelector('.risk-score-circle').hidden = true
-      group.querySelector('.risk-score-circle').textContent = ''
-      group.querySelectorAll('.score-choice').forEach(button => button.classList.remove('selected'))
-    }
-    resetScores.addEventListener('click', () => {
-      wizardState.beforeScore = ''
-      wizardState.afterScore = ''
-      clearScoreGroup(beforeScoreGroup, 'red')
-      clearScoreGroup(afterScoreGroup, 'green')
-      afterScoreGroup.querySelectorAll('.score-choice').forEach(button => { button.disabled = true })
-      updateRiskGrades()
-      toast('개선 전·후 위험도 선택을 모두 지웠습니다.')
-    })
-    scoreCards.append(beforeScoreGroup, afterScoreGroup)
-    pages[2].append(
-      scoreIntro,
-      scoreCards,
-      resetScores,
-      document.createElement('hr'),
-      field('개선 전 위험등급', beforeGrade, '개선 전 빨간색 숫자를 선택하면 자동으로 입력됩니다.'),
-      field('개선 후 위험등급', afterGrade, '개선 후 초록색 숫자를 선택하면 자동으로 입력됩니다.'),
-    )
 
-    const summary = document.createElement('dl')
-    summary.className = 'assessment-summary'
-    const summaryItems = []
-    ;['평가 유형', '부서 / 팀', '공정명', '평가 기준일', '참여자', '위험요인', '재해형태', '개선(예방)대책', '개선 예정일', '개선 전 위험등급', '개선 후 위험등급', '개선 전 사진'].forEach(label => {
-      const row = document.createElement('div')
-      row.className = 'summary-item'
-      const term = document.createElement('dt')
-      term.textContent = label
-      const detail = document.createElement('dd')
-      detail.textContent = '—'
-      row.append(term, detail)
-      summary.append(row)
-      summaryItems.push(detail)
-    })
-    pages[3].append(summary)
-    const refreshSummary = () => {
-      const values = [
-        assessmentType.value,
-        team.value.trim(),
-        process.value.trim(),
-        assessmentDate.value,
-        participants.value.trim(),
-        hazard.value.trim(),
-        accidentType.value.trim(),
-        improvement.value.trim(),
-        improvementDate.value,
-        wizardState.beforeScore,
-        wizardState.afterScore,
-        Array.from(photoInput.files || []).map(file => file.name).join(', '),
+    const buildRiskMatrix = () => {
+      const table = formSheet.querySelector('.risk-matrix')
+      const headerRow = document.createElement('tr')
+      const corner = document.createElement('th')
+      corner.textContent = '빈도 / 강도'
+      headerRow.append(corner)
+      const severities = [
+        ['영향 없음', 1],
+        ['경미한 재해', 2],
+        ['경증한 재해', 3],
+        ['중대 재해', 4],
       ]
-      summaryItems.forEach((item, index) => { item.textContent = values[index] || (index === 10 ? '등록된 사진 없음' : '—') })
+      severities.forEach(([label, value]) => {
+        const th = document.createElement('th')
+        th.innerHTML = `<span></span><small>${value}</small>`
+        th.querySelector('span').textContent = label
+        headerRow.append(th)
+      })
+      const thead = document.createElement('thead')
+      thead.append(headerRow)
+      const tbody = document.createElement('tbody')
+      const frequencies = [
+        ['거의 없음', 1],
+        ['낮음', 2],
+        ['있음', 3],
+        ['높음', 4],
+        ['빈번함', 5],
+      ]
+      frequencies.forEach(([label, frequency]) => {
+        const row = document.createElement('tr')
+        const labelCell = document.createElement('th')
+        labelCell.innerHTML = '<span></span><small></small>'
+        labelCell.querySelector('span').textContent = label
+        labelCell.querySelector('small').textContent = String(frequency)
+        row.append(labelCell)
+        severities.forEach(([, severity]) => {
+          const score = Number(frequency) * Number(severity)
+          const cell = document.createElement('td')
+          const button = document.createElement('button')
+          button.type = 'button'
+          button.className = `matrix-cell ${score >= 16 ? 'matrix-extreme' : score >= 8 ? 'matrix-high' : ''}`
+          button.dataset.score = String(score)
+          button.setAttribute('aria-label', `위험도 ${score} 선택`)
+          const scoreText = document.createElement('span')
+          scoreText.className = 'matrix-score'
+          scoreText.textContent = String(score)
+          const beforeMarker = document.createElement('i')
+          beforeMarker.className = 'matrix-marker marker-before'
+          beforeMarker.textContent = '○'
+          beforeMarker.hidden = true
+          const afterMarker = document.createElement('i')
+          afterMarker.className = 'matrix-marker marker-after'
+          afterMarker.textContent = '○'
+          afterMarker.hidden = true
+          button.append(scoreText, beforeMarker, afterMarker)
+          button.addEventListener('click', () => {
+            if (!selectedBeforeCell) {
+              selectedBeforeCell = button
+              beforeRisk = String(score)
+              beforeMarker.hidden = false
+              button.classList.add('selected-before')
+              formSheet.querySelector('[data-before-grade]').value = beforeRisk
+              formSheet.querySelector('[data-before-grade-label]').textContent = `위험도 ${score} · 등급 ${riskGrade(score)}`
+              formSheet.querySelector('.matrix-selection-hint').textContent = '개선 전 선택 완료. 이제 개선 후 위험도를 초록색으로 선택하세요.'
+              return
+            }
+            if (!selectedAfterCell) {
+              selectedAfterCell = button
+              afterRisk = String(score)
+              afterMarker.hidden = false
+              button.classList.add('selected-after')
+              formSheet.querySelector('[data-after-grade]').value = afterRisk
+              formSheet.querySelector('[data-after-grade-label]').textContent = `위험도 ${score} · 등급 ${riskGrade(score)}`
+              formSheet.querySelector('.matrix-selection-hint').textContent = '개선 전·후 위험도가 선택되었습니다. 다시 선택하려면 ③ 초기화를 누르세요.'
+              return
+            }
+            toast('선택을 바꾸려면 ③ 초기화 버튼을 먼저 눌러 주세요.')
+          })
+          cell.append(button)
+          row.append(cell)
+        })
+        tbody.append(row)
+      })
+      table.append(thead, tbody)
     }
 
-    const modalTitle = '새 위험성평가 만들기'
-    showModal(modalTitle, '단계별로 입력하고, 마지막에 내용을 확인하세요.', form, '다음 단계', (backdrop) => {
-      if (wizardState.step === 0) {
-        if (!team.value.trim() || !process.value.trim()) {
-          toast('부서와 공정명을 입력해 주세요.')
+    const riskGrade = (score) => {
+      const value = Number(score)
+      if (value <= 3) return 1
+      if (value <= 6) return 2
+      if (value === 8) return 3
+      if (value <= 12) return 4
+      if (value === 15) return 5
+      return 6
+    }
+
+    const buildFormSheet = () => {
+      formSheet = document.createElement('div')
+      formSheet.className = 'ppt-assessment-sheet'
+      formSheet.innerHTML = `
+        <header class="ppt-sheet-header">
+          <h3 class="ppt-sheet-title"></h3>
+          <div class="ppt-sheet-meta">
+            <label>부서 / 팀<input type="text" data-sheet-team /></label>
+            <label>공정명<input type="text" data-sheet-process /></label>
+            <label>평가일<input type="date" data-sheet-date /></label>
+          </div>
+        </header>
+        <div class="ppt-progress-ribbon" aria-label="평가 진행 단계">
+          <span class="ribbon-active">기본정보</span><span>위험요인</span><span>대책수립</span><span>위험도</span><span>개선조치</span><span>확인</span><span>검토</span><span>완료</span>
+        </div>
+        <div class="ppt-assessment-grid">
+          <section class="ppt-main-column">
+            <div class="ppt-description-grid">
+              <div class="ppt-section-title">위험요인 및 재해형태</div>
+              <div class="ppt-section-title">개선(예방)대책</div>
+              <div class="ppt-sheet-cell">
+                <label class="ppt-text-label">위험요인<textarea data-hazard rows="3" placeholder="작업 중 어떤 위험이 있는지 작성"></textarea></label>
+                <label class="ppt-text-label">재해형태<textarea data-accident rows="2" placeholder="예: 끼임, 넘어짐, 추락"></textarea></label>
+              </div>
+              <label class="ppt-sheet-cell ppt-text-label"><span class="sr-only">개선(예방)대책</span><textarea data-countermeasure rows="6" placeholder="위험요인을 줄이거나 제거할 수 있는 개선·예방대책을 작성"></textarea></label>
+            </div>
+            <div class="ppt-photo-section">
+              <div class="ppt-section-title">개선 전</div><div class="ppt-section-title">개선 후</div>
+              <div class="ppt-photo-cell">
+                <button class="ppt-photo-button" data-photo-button="before" type="button"><span class="ppt-photo-empty">사진</span><strong>개선 전 사진 추가</strong><small>사진 파일 선택</small></button>
+                <input data-photo-input="before" type="file" accept="image/*" multiple hidden />
+                <div class="ppt-photo-preview" data-photo-preview="before"></div>
+              </div>
+              <div class="ppt-photo-cell">
+                <button class="ppt-photo-button" data-photo-button="after" type="button"><span class="ppt-photo-empty">사진</span><strong>개선 후 사진 추가</strong><small>사진 파일 선택</small></button>
+                <input data-photo-input="after" type="file" accept="image/*" multiple hidden />
+                <div class="ppt-photo-preview" data-photo-preview="after"></div>
+              </div>
+            </div>
+            <div class="ppt-detail-grid">
+              <label class="ppt-detail-cell detail-before"><strong>개선전 위험등급</strong><input data-before-grade readonly placeholder="위험도 선택 시 자동 입력" /><small data-before-grade-label></small></label>
+              <label class="ppt-detail-cell detail-after"><strong>개선후 위험등급</strong><input data-after-grade readonly placeholder="위험도 선택 시 자동 입력" /><small data-after-grade-label></small></label>
+              <label class="ppt-detail-cell"><strong>개선 예정일</strong><input data-improvement-date type="date" /><small>날짜를 눌러 달력에서 선택</small></label>
+              <label class="ppt-detail-cell"><strong>담당자</strong><input data-owner placeholder="담당자 이름" /></label>
+              <label class="ppt-detail-cell ppt-participants"><strong>위험성평가 참여자</strong><textarea data-participants rows="2" placeholder="이름을 직접 입력 · 여러 명은 쉼표로 구분"></textarea></label>
+            </div>
+          </section>
+          <aside class="ppt-risk-column">
+            <div class="ppt-section-title">개선 전, 후 위험성(리스크) 평가</div>
+            <p class="matrix-selection-hint">먼저 위험도 숫자를 눌러 개선 전(빨간색)을 선택하세요.</p>
+            <div class="matrix-legend"><span>개선 전 <i class="legend-before">○</i></span><span>개선 후 <i class="legend-after">○</i></span></div>
+            <table class="risk-matrix" aria-label="빈도와 강도별 위험도 선택"></table>
+            <button class="matrix-reset-button" type="button">③ 초기화 · 동그라미 모두 지우기</button>
+            <div class="ppt-section-title risk-grade-title">위험도 수준</div>
+            <table class="risk-grade-table">
+              <thead><tr><th>등급</th><th>위험도 수준</th><th>위험도</th></tr></thead>
+              <tbody>
+                <tr class="grade-1"><th>1</th><td>무시할 수 있는 위험</td><td>1~3</td></tr>
+                <tr class="grade-2"><th>2</th><td>미미한 위험 (필요 시 개선)</td><td>4~6</td></tr>
+                <tr class="grade-3"><th>3</th><td>경미한 위험 (계획적 개선)</td><td>8</td></tr>
+                <tr class="grade-4"><th>4</th><td>상당한 위험 (조건부 작업, 개선)</td><td>9~12</td></tr>
+                <tr class="grade-5"><th>5</th><td>중대한 위험 (신속 개선)</td><td>15</td></tr>
+                <tr class="grade-6"><th>6</th><td>허용 불가 위험 (즉시 작업 중지)</td><td>16~20</td></tr>
+              </tbody>
+            </table>
+            <label class="ppt-notes"><strong>비고</strong><textarea data-notes rows="4" placeholder="추가 메모"></textarea></label>
+          </aside>
+        </div>
+        <footer class="ppt-sheet-footer"><span>유첨 · 1/1</span><strong>깨끗한나라 · 위험성평가</strong></footer>`
+
+      formSheet.querySelector('.ppt-sheet-title').textContent = `유첨) ${assessmentDate.value.slice(0, 4)}년 ${assessmentType.value} 위험성평가(개선 필요 건)`
+      formSheet.querySelector('[data-sheet-team]').value = team.value.trim()
+      formSheet.querySelector('[data-sheet-process]').value = process.value.trim()
+      formSheet.querySelector('[data-sheet-date]').value = assessmentDate.value
+      formSheet.querySelector('[data-sheet-team]').addEventListener('input', event => { team.value = event.target.value })
+      formSheet.querySelector('[data-sheet-process]').addEventListener('input', event => { process.value = event.target.value })
+      formSheet.querySelector('[data-sheet-date]').addEventListener('input', event => { assessmentDate.value = event.target.value })
+      buildRiskMatrix()
+      createPhotoPicker('before', '개선 전', '사진 파일 선택')
+      createPhotoPicker('after', '개선 후', '사진 파일 선택')
+      formSheet.querySelector('.matrix-reset-button').addEventListener('click', () => {
+        selectedBeforeCell?.classList.remove('selected-before')
+        selectedAfterCell?.classList.remove('selected-after')
+        formSheet.querySelectorAll('.matrix-marker').forEach(marker => { marker.hidden = true })
+        selectedBeforeCell = null
+        selectedAfterCell = null
+        beforeRisk = ''
+        afterRisk = ''
+        formSheet.querySelector('[data-before-grade]').value = ''
+        formSheet.querySelector('[data-after-grade]').value = ''
+        formSheet.querySelector('[data-before-grade-label]').textContent = ''
+        formSheet.querySelector('[data-after-grade-label]').textContent = ''
+        formSheet.querySelector('.matrix-selection-hint').textContent = '먼저 위험도 숫자를 눌러 개선 전(빨간색)을 선택하세요.'
+      })
+      formSheet.querySelector('[data-hazard]').value = ''
+    }
+
+    showModal('새 위험성평가 만들기', '기본 정보를 입력한 뒤 PPT 양식으로 위험성평가서를 작성합니다.', intro, '평가 시작', (backdrop) => {
+      if (phase === 'start') {
+        if (!team.value.trim() || !process.value.trim() || !assessmentDate.value) {
+          toast('부서, 공정명, 평가일을 입력해 주세요.')
           return
         }
         if (assessmentType.value === '수시' && !reason.value) {
           toast('수시 평가 사유를 선택해 주세요.')
           return
         }
-      }
-      if (wizardState.step === 1 && (!hazard.value.trim() || !accidentType.value.trim() || !improvement.value.trim())) {
-        toast('위험요인, 재해형태, 개선(예방)대책을 입력해 주세요.')
-        return
-      }
-      if (wizardState.step === 2 && (!wizardState.beforeScore || !wizardState.afterScore)) {
-        toast('개선 전 빨간색, 개선 후 초록색 위험도를 순서대로 선택해 주세요.')
-        return
-      }
-      if (wizardState.step < 3) {
-        wizardState.step += 1
-        if (wizardState.step === 3) refreshSummary()
-        pages.forEach((page, index) => { page.hidden = index !== wizardState.step })
-        stepButtons.forEach((item, index) => {
-          item.classList.toggle('active', index === wizardState.step)
-          item.classList.toggle('complete', index < wizardState.step)
-        })
-        backdrop.querySelector('.modal-submit').textContent = wizardState.step === 3 ? '평가 저장' : '다음 단계'
-        previousButton.hidden = wizardState.step === 0
-        const labels = ['기본 정보와 참여자를 입력해 주세요.', '위험요인, 재해형태, 대책과 개선 전 사진을 입력해 주세요.', '개선 전 빨간색을 먼저 선택하고, 개선 후 초록색을 선택해 주세요.', '입력한 내용을 확인한 뒤 평가 초안을 저장합니다.']
-        backdrop.querySelector('.modal-head p').textContent = labels[wizardState.step]
+        buildFormSheet()
+        phase = 'sheet'
+        backdrop.querySelector('.modal-card').classList.add('ppt-modal-card')
+        backdrop.querySelector('#dialog-title').textContent = '위험성평가서 작성'
+        backdrop.querySelector('.modal-head p').textContent = '참고 PPT 형식으로 위험요인, 개선대책, 사진과 위험도를 작성하세요.'
+        backdrop.querySelector('.modal-body').replaceChildren(formSheet)
         backdrop.querySelector('.modal-body').scrollTop = 0
+        backdrop.querySelector('.modal-submit').textContent = '평가 저장'
         return
       }
 
+      const hazard = formSheet.querySelector('[data-hazard]').value.trim()
+      const accident = formSheet.querySelector('[data-accident]').value.trim()
+      const countermeasure = formSheet.querySelector('[data-countermeasure]').value.trim()
+      if (!hazard || !accident || !countermeasure) {
+        toast('위험요인, 재해형태, 개선(예방)대책을 입력해 주세요.')
+        return
+      }
+      if (!beforeRisk || !afterRisk) {
+        toast('개선 전 빨간색과 개선 후 초록색 위험도를 순서대로 선택해 주세요.')
+        return
+      }
       const tbody = document.querySelector('#assessment-table-body')
       const row = document.createElement('tr')
       row.dataset.type = assessmentType.value === '정기' ? 'regular' : 'adhoc'
-      row.dataset.search = `${team.value} ${process.value} ${assessmentType.value} ${hazard.value} ${accidentType.value} ${participants.value}`
+      row.dataset.search = `${team.value} ${process.value} ${assessmentType.value} ${hazard} ${accident} ${formSheet.querySelector('[data-participants]').value}`
       row.innerHTML = `
         <td><div class="assessment-name"><span class="assessment-symbol symbol-mint"></span><span><strong></strong><small></small></span></div></td>
         <td><span class="type-badge"></span></td><td><span class="author-cell"><i class="author-avatar avatar-teal">김</i> 김안전</span></td>
@@ -341,41 +347,17 @@
         <td><span class="risk-count risk-high"></span></td><td><span class="status-badge status-progress"><i></i> 작성 중</span></td><td><button class="row-menu" type="button" aria-label="평가 메뉴">···</button></td>`
       row.querySelector('.assessment-symbol').textContent = team.value.trim().slice(0, 1)
       row.querySelector('.assessment-name strong').textContent = process.value.trim() + ' 위험성평가'
-      row.querySelector('.assessment-name small').textContent = `${team.value.trim()} · ${process.value.trim()} · 참여자 ${participants.value.trim() || '미입력'}`
-      row.querySelector('.risk-count').textContent = `${wizardState.beforeScore} → ${wizardState.afterScore}`
+      row.querySelector('.assessment-name small').textContent = `${team.value.trim()} · ${process.value.trim()} · ${formSheet.querySelector('[data-participants]').value.trim() || '참여자 미입력'}`
+      row.querySelector('.risk-count').textContent = `${beforeRisk} → ${afterRisk}`
       const badge = row.querySelector('.type-badge')
       badge.textContent = assessmentType.value
       badge.classList.add(assessmentType.value === '정기' ? 'type-regular' : 'type-adhoc')
       tbody.prepend(row)
       document.querySelector('#total-count').textContent = String(Number(document.querySelector('#total-count').textContent) + 1)
-      wizardState.photoUrls.forEach(url => URL.revokeObjectURL(url))
+      Object.values(photoObjectUrls).flat().forEach(url => URL.revokeObjectURL(url))
       backdrop.remove()
       toast(`${process.value.trim()} 평가 초안을 저장했습니다. (현재 브라우저 미리보기)`)
     })
-    document.querySelector('.modal-card')?.classList.add('assessment-modal-card')
-    const previousButton = document.createElement('button')
-    previousButton.type = 'button'
-    previousButton.className = 'button button-secondary wizard-previous'
-    previousButton.textContent = '이전 단계'
-    previousButton.hidden = true
-    previousButton.addEventListener('click', () => {
-      if (wizardState.step === 0) return
-      wizardState.step -= 1
-      pages.forEach((page, index) => { page.hidden = index !== wizardState.step })
-      stepButtons.forEach((item, index) => {
-        item.classList.toggle('active', index === wizardState.step)
-        item.classList.toggle('complete', index < wizardState.step)
-      })
-      const backdrop = document.querySelector('.modal-backdrop')
-      if (backdrop) {
-        backdrop.querySelector('.modal-submit').textContent = '다음 단계'
-        backdrop.querySelector('.modal-head p').textContent = ['기본 정보와 참여자를 입력해 주세요.', '위험요인, 재해형태, 대책과 개선 전 사진을 입력해 주세요.', '개선 전 빨간색을 먼저 선택하고, 개선 후 초록색을 선택해 주세요.'][wizardState.step]
-        backdrop.querySelector('.modal-body').scrollTop = 0
-      }
-      previousButton.hidden = wizardState.step === 0
-    })
-    document.querySelector('.modal-foot').prepend(previousButton)
-    stepButtons[0].classList.add('active')
   })
 
   const uploadButton = document.querySelector('#open-photo-modal')
