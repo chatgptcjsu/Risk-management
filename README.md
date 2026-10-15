@@ -1,21 +1,40 @@
-```txt
-npm install
-npm run dev
+# 안전온 — 위험성평가 플랫폼 미리보기
+
+## 프로젝트 개요
+위험성평가의 작성, 검토·승인, 개선조치 추적과 연도별 문서 보관을 지원할 플랫폼의 화면 프로토타입입니다.
+현재 화면은 요구사항 확인을 위한 샘플 UI이며, Spring Boot·MariaDB 백엔드와 연결되어 있지 않습니다.
+
+## 현재 구현된 화면
+- 청주공장 위험성평가 대시보드 및 KPI 카드
+- 정기 / 수시 평가 유형 필터와 샘플 평가 목록 검색
+- 새 평가 생성 모달 (샘플 행 추가)
+- 위험도 8 이상 우선 개선 항목 목록
+- 승인 대기, 최근 활동, AI 사진분석 진입 UI
+- 모바일 화면용 사이드바와 반응형 레이아웃
+- `/health` 상태 확인 엔드포인트
+
+## 진입 경로
+- `/` : 대시보드 화면
+- `/health` : `{ "status": "ok", "app": "safety-on-preview" }`
+
+## 아직 연결되지 않은 기능
+- 로그인 및 사용자별 조회/수정/승인 권한
+- Spring Boot API와 MariaDB 영속 저장
+- 실제 위험성평가 생성·수정 및 승인 워크플로
+- 현장 사진 업로드와 AI 위험요인 분석
+- 위험도 계산 및 고위험 자동 선별의 서버 검증
+- 연도별 평가 검색, 엑셀/PPT 파일 생성 및 내려받기
+
+## 실행 방법
+```bash
+cd /home/user/webapp
+npm run build
+pm2 start ecosystem.config.cjs
 ```
+미리보기는 샌드박스 포트 3000에서 실행합니다. PM2 로그는 `pm2 logs webapp --nostream`으로 확인할 수 있습니다.
 
-```txt
-npm run deploy
-```
-
-[For generating/synchronizing types based on your Worker configuration run](https://developers.cloudflare.com/workers/wrangler/commands/#types):
-
-```txt
-npm run cf-typegen
-```
-
-Pass the `CloudflareBindings` as generics when instantiation `Hono`:
-
-```ts
-// src/index.ts
-const app = new Hono<{ Bindings: CloudflareBindings }>()
-```
+## 기술 및 배포 상태
+- 현재 미리보기: Hono + Vite + TypeScript/TSX
+- 목표 서비스: Java 17 + Spring Boot + MariaDB
+- 저장소: `https://github.com/chatgptcjsu/Risk-management` (`main` 브랜치)
+- Cloudflare Pages는 Spring Boot 서버 호스팅 대상이 아니므로 실제 배포 시 별도 Java 지원 호스팅 환경이 필요합니다.
