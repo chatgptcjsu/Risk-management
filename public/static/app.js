@@ -516,7 +516,7 @@
           <span data-meta-team></span><span data-meta-process></span><span data-meta-date></span>
         </div></header>
         <div class="ppt-progress-ribbon" aria-label="공정 단계">
-          <span class="ribbon-active">Unwinder</span><span>Embossing</span><span>Rewinder</span><span>Tail Seal</span><span>Accumulator</span><span>Log Saw</span><span>EM24</span><span>Handler M/C</span><span>Bundler</span><span>Palletizer</span>
+          <span class="ribbon-active">8점 이상 위험</span><span>현장 확인 및 협의 중</span><span>공무팀 검토</span><span>공사진행</span><span>공사 검토</span><span>공사완료</span>
         </div>
         <div class="ppt-assessment-grid">
           <section class="ppt-main-column">
@@ -555,10 +555,10 @@
       formSheet.querySelector('[data-after-grade]').value = oldPpt?.afterRisk || ''
       formSheet.querySelector('[data-before-grade-label]').textContent = oldPpt?.beforeRisk ? `등급 ${riskGrade(oldPpt.beforeRisk)}` : ''
       formSheet.querySelector('[data-after-grade-label]').textContent = oldPpt?.afterRisk ? `등급 ${riskGrade(oldPpt.afterRisk)}` : ''
-      formSheet.querySelector('[data-notes]').value = oldPpt?.notes || row.notes || ''
       formSheet.querySelector('[data-before-photo]').append(buildPhotoPreview('before', '개선 전', oldPpt?.beforePhotos || []))
       formSheet.querySelector('[data-after-photo]').append(buildPhotoPreview('after', '개선 후', oldPpt?.afterPhotos || []))
       formSheet.querySelector('[data-risk-matrix]').replaceWith(buildRiskMatrix(record, row))
+      formSheet.querySelector('[data-notes]').value = oldPpt?.notes || row.notes || ''
       return formSheet
     }
 

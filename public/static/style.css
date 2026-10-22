@@ -410,7 +410,7 @@ h1, h2, h3, p { margin-top: 0; }
 .ppt-sheet-meta { display: flex; flex: 0 0 auto; gap: 9px; }
 .ppt-sheet-meta label { display: grid; gap: 3px; color: #38474d; font-size: 9px; font-weight: 700; }
 .ppt-sheet-meta input { width: 105px; min-height: 23px; padding: 3px 4px; border: 0; border-bottom: 1px solid #abb6ba; border-radius: 0; background: transparent; color: #1d2f36; font-size: 10px; }
-.ppt-progress-ribbon { display: grid; grid-template-columns: repeat(8, minmax(65px, 1fr)); gap: 3px; overflow-x: auto; padding: 7px 8px; }
+.ppt-progress-ribbon { display: grid; grid-template-columns: repeat(6, minmax(86px, 1fr)); gap: 3px; overflow-x: auto; padding: 7px 8px; }
 .ppt-progress-ribbon span { display: grid; min-height: 30px; place-items: center; border: 1px solid #8ba0a8; background: #fff; color: #42545a; font-size: 9px; font-weight: 700; clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 50%, calc(100% - 9px) 100%, 0 100%, 9px 50%); }
 .ppt-progress-ribbon .ribbon-active { border-color: #b3aa00; background: #fff500; color: #1a1a1a; }
 .ppt-assessment-grid { display: grid; grid-template-columns: minmax(0, 1.85fr) minmax(280px, 1fr); border-top: 1px solid #68787e; }
@@ -497,7 +497,7 @@ h1, h2, h3, p { margin-top: 0; }
   .ppt-modal-card .modal-body { padding: 7px; }
   .ppt-sheet-meta { display: grid; grid-template-columns: 1fr 1fr; }
   .ppt-sheet-title { font-size: 12px; }
-  .ppt-progress-ribbon { grid-template-columns: repeat(8, 68px); }
+  .ppt-progress-ribbon { grid-template-columns: repeat(6, 86px); }
   .ppt-description-grid, .ppt-photo-section, .ppt-detail-grid { grid-template-columns: 1fr 1fr; }
   .ppt-section-title { font-size: 9px; }
   .ppt-sheet-cell { min-height: 150px; padding: 5px; }
@@ -557,7 +557,7 @@ h1, h2, h3, p { margin-top: 0; }
 .ppt-modal-card { width: min(1320px, 100%); }
 .ppt-modal-card .modal-body { padding: 10px; }
 .ppt-sheet-meta span { padding: 3px 5px; color: #38474d; font-size: 9px; font-weight: 700; }
-.ppt-progress-ribbon { grid-template-columns: repeat(10, minmax(58px, 1fr)); }
+.ppt-progress-ribbon { grid-template-columns: repeat(6, minmax(86px, 1fr)); }
 .ppt-photo-row { display: grid; grid-template-columns: 1fr 1fr; }
 .ppt-photo-row > div { min-width: 0; }
 .ppt-photo-row .ppt-photo-cell { min-height: 170px; }
@@ -576,7 +576,7 @@ h1, h2, h3, p { margin-top: 0; }
   .ppt-sheet-header { align-items: flex-start; }
   .ppt-sheet-meta { flex-wrap: wrap; }
   .ppt-photo-row { grid-template-columns: 1fr 1fr; }
-  .ppt-progress-ribbon { grid-template-columns: repeat(10, 58px); }
+  .ppt-progress-ribbon { grid-template-columns: repeat(6, 86px); }
 }
 
 @media (min-width: 1500px) {
