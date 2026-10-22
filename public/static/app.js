@@ -57,6 +57,489 @@
     return wrapper
   }
 
+  const authState = { user: null, csrfToken: '' }
+  const currentYear = new Date().getFullYear()
+  const teamProcesses = {
+    '제지생산1팀': ['원질', '초지'],
+    '제지생산2팀': ['카타', '포장'],
+    '화장지생산팀': ['초지', '가공'],
+    '패드생산팀': [],
+    'PS품질보증팀': [],
+    'HL품질보증팀': [],
+    '환경에너지팀': ['에너지', '환경'],
+    '공무팀': [],
+    '전기팀': [],
+    '구매1팀': [],
+  }
+
+  const ensureCsrf = async () => {
+    if (authState.csrfToken) return authState.csrfToken
+    const response = await fetch('/api/auth/csrf', { credentials: 'same-origin' })
+    if (!response.ok) throw new Error('보안 토큰을 가져오지 못했습니다.')
+    const data = await response.json()
+    authState.csrfToken = data.token
+    return authState.csrfToken
+  }
+
+  const apiRequest = async (url, options = {}) => {
+    const method = (options.method || 'GET').toUpperCase()
+    const headers = new Headers(options.headers || {})
+    if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+      headers.set('X-XSRF-TOKEN', await ensureCsrf())
+    }
+    if (options.body && !(options.body instanceof FormData) && !headers.has('Content-Type')) {
+      headers.set('Content-Type', 'application/json')
+    }
+    const response = await fetch(url, { ...options, method, headers, credentials: 'same-origin' })
+    if (response.status === 204) return null
+    const contentType = response.headers.get('content-type') || ''
+    const payload = contentType.includes('application/json') ? await response.json() : await response.text()
+    if (!response.ok) {
+      const error = new Error(payload?.message || payload?.error || '요청을 완료하지 못했습니다.')
+      error.status = response.status
+      throw error
+    }
+    return payload
+  }
+
+  const isManager = () => ['MANAGER', 'ADMIN'].includes(authState.user?.role)
+  const isAdmin = () => authState.user?.role === 'ADMIN'
+
+  const updateAccessUi = () => {
+    const loginButton = document.querySelector('#manager-auth-button')
+    if (loginButton) loginButton.textContent = authState.user ? `${authState.user.displayName} · 로그아웃` : '로그인'
+    const userAdminButton = document.querySelector('#user-admin-button')
+    if (userAdminButton) userAdminButton.hidden = !isAdmin()
+    const addImprovementButton = document.querySelector('#add-improvement-button')
+    if (addImprovementButton) addImprovementButton.hidden = !isManager()
+    document.querySelectorAll('[data-file-upload]').forEach((input) => {
+      input.closest('.tree-file-upload').hidden = !isManager()
+    })
+    document.querySelectorAll('.improvement-status-select').forEach((select) => {
+      select.disabled = !isManager()
+    })
+  }
+
+  const setEmptyRow = (tbody, columns, message) => {
+    tbody.replaceChildren()
+    const row = document.createElement('tr')
+    const cell = document.createElement('td')
+    cell.colSpan = columns
+    cell.className = 'table-empty'
+    cell.textContent = message
+    row.append(cell)
+    tbody.append(row)
+  }
+
+  const formatDate = (value) => {
+    if (!value) return '—'
+    const date = new Date(`${value.slice(0, 10)}T00:00:00`)
+    return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat('ko-KR').format(date)
+  }
+
+  const showRequestError = (error) => {
+    if (error.status === 401) {
+      toast('로그인이 필요합니다. 상단의 로그인 버튼을 눌러 주세요.')
+    } else if (error.status === 403) {
+      toast('이 작업은 관리자 또는 평가 담당자 권한이 필요합니다.')
+    } else {
+      toast(error.message || '요청 처리 중 오류가 발생했습니다.')
+    }
+  }
+
+  const createStatusSelect = (item) => {
+    const select = document.createElement('select')
+    select.className = `improvement-status-select ${item.status === 'COMPLETED' ? 'status-completed' : 'status-in-progress'}`
+    select.setAttribute('aria-label', `${item.hazardEvent} 개선 상태`)
+    select.innerHTML = '<option value="IN_PROGRESS">개선 진행 중</option><option value="COMPLETED">개선 완료</option>'
+    select.value = item.status
+    select.disabled = !isManager()
+    select.dataset.improvementId = item.id
+    return select
+  }
+
+  const renderHighRiskItems = (items) => {
+    const tbody = document.querySelector('#improvement-table-body')
+    if (!tbody) return
+    if (!items.length) {
+      setEmptyRow(tbody, 6, authState.user ? '위험도 8 이상인 미완료 개선 건이 없습니다.' : '로그인 후 개선 필요 건을 확인할 수 있습니다.')
+      return
+    }
+    tbody.replaceChildren()
+    items.forEach((item) => {
+      const row = document.createElement('tr')
+      const scoreCell = row.insertCell()
+      const score = document.createElement('span')
+      score.className = `improvement-risk-score${item.riskScore >= 15 ? ' score-very-high' : ''}`
+      score.textContent = String(item.riskScore)
+      scoreCell.append(score)
+
+      const hazardCell = row.insertCell()
+      const hazardText = document.createElement('span')
+      hazardText.className = 'improvement-hazard-cell'
+      hazardText.textContent = item.hazardEvent
+      hazardCell.append(hazardText)
+
+      const targetCell = row.insertCell()
+      targetCell.className = 'improvement-target-cell'
+      const target = document.createElement('span')
+      target.textContent = `${item.year}년 · ${item.assessmentType === 'REGULAR' ? '정기' : '수시'}`
+      const team = document.createElement('small')
+      team.textContent = item.process ? `${item.team} · ${item.process}` : item.team
+      targetCell.append(target, team)
+
+      const actionCell = row.insertCell()
+      const actionText = document.createElement('span')
+      actionText.className = 'improvement-action-cell'
+      actionText.textContent = item.improvementAction
+      actionCell.append(actionText)
+
+      const dateCell = row.insertCell()
+      dateCell.className = 'improvement-date-cell'
+      dateCell.textContent = formatDate(item.plannedDate)
+
+      const statusCell = row.insertCell()
+      const status = createStatusSelect(item)
+      status.addEventListener('change', () => changeImprovementStatus(item, status))
+      statusCell.append(status)
+      tbody.append(row)
+    })
+  }
+
+  const openImprovementDetails = async (item) => {
+    const content = document.createElement('div')
+    content.className = 'improvement-details-modal'
+    const rows = [
+      ['개선 전 위험요인 / 재해형태', item.hazardEvent],
+      ['개선(예방)대책', item.improvementAction],
+      ['평가 및 담당', `${item.year}년 · ${item.assessmentType === 'REGULAR' ? '정기' : '수시'} · ${item.team}${item.process ? ` · ${item.process}` : ''} · 빈도 ${item.frequency} × 강도 ${item.severity} = ${item.riskScore}`],
+      ['예정일 / 완료일', `${formatDate(item.plannedDate)} / ${formatDate(item.completedDate)}`],
+    ]
+    rows.forEach(([title, value]) => {
+      const block = document.createElement('section')
+      block.className = 'improvement-detail-block'
+      const heading = document.createElement('strong')
+      heading.textContent = title
+      const text = document.createElement('p')
+      text.textContent = value || '—'
+      block.append(heading, text)
+      content.append(block)
+    })
+    try {
+      const history = await apiRequest(`/api/improvements/${item.id}/history`)
+      const historyBlock = document.createElement('section')
+      historyBlock.className = 'improvement-detail-block'
+      const heading = document.createElement('strong')
+      heading.textContent = '상태 변경 이력'
+      const text = document.createElement('p')
+      text.textContent = history.length
+        ? history.map(entry => `${formatDate(entry.completedDate)} · ${entry.previousStatus || '신규'} → ${entry.newStatus} · ${entry.changedBy}`).join('\n')
+        : '상태 변경 이력이 없습니다.'
+      historyBlock.append(heading, text)
+      content.append(historyBlock)
+    } catch (error) {
+      if (error.status === 401) { showRequestError(error); return }
+    }
+    showModal('개선 완료 상세', '완료 기록과 처리 이력을 확인합니다.', content, '닫기', closeModal)
+  }
+
+  const renderCompletedItems = (items) => {
+    const tbody = document.querySelector('#completed-table-body')
+    const count = document.querySelector('#completed-total')
+    if (!tbody) return
+    if (count) count.textContent = `완료 ${items.length}건`
+    if (!items.length) {
+      setEmptyRow(tbody, 6, '개선 완료 항목이 없습니다.')
+      return
+    }
+    tbody.replaceChildren()
+    items.forEach((item) => {
+      const row = document.createElement('tr')
+      row.insertCell().textContent = formatDate(item.completedDate)
+      const score = row.insertCell()
+      const scoreChip = document.createElement('span')
+      scoreChip.className = 'improvement-risk-score'
+      scoreChip.textContent = String(item.riskScore)
+      score.append(scoreChip)
+      row.insertCell().textContent = item.hazardEvent
+      row.insertCell().textContent = item.process ? `${item.team} · ${item.process}` : item.team
+      row.insertCell().textContent = item.improvementAction
+      const detailCell = row.insertCell()
+      const detailButton = document.createElement('button')
+      detailButton.type = 'button'
+      detailButton.className = 'completed-details-button'
+      detailButton.textContent = '상세 보기'
+      detailButton.addEventListener('click', () => openImprovementDetails(item))
+      detailCell.append(detailButton)
+      tbody.append(row)
+    })
+  }
+
+  const loadHighRiskItems = async () => {
+    const items = await apiRequest('/api/improvements/high-risk')
+    renderHighRiskItems(items)
+  }
+
+  const loadCompletedItems = async () => {
+    const sort = document.querySelector('#completed-sort')?.value || 'desc'
+    const items = await apiRequest(`/api/improvements/completed?sort=${encodeURIComponent(sort)}`)
+    renderCompletedItems(items)
+  }
+
+  const buildFileListQuery = () => '/api/files'
+
+  const renderFileMetadata = (file) => {
+    const selector = `[data-document-list][data-upload-year="${file.year}"][data-upload-type="${file.assessmentType}"][data-upload-category="${file.category}"][data-upload-team="${CSS.escape(file.team)}"][data-upload-process="${CSS.escape(file.process || '')}"]`
+    const list = document.querySelector(selector)
+    if (!list) return
+    const item = document.createElement('li')
+    item.className = 'tree-document-entry'
+    const link = document.createElement('a')
+    link.href = `/api/files/${file.id}/download`
+    link.textContent = file.originalName
+    link.title = `${Math.ceil(file.fileSize / 1024)} KB · ${file.uploadedBy}`
+    item.append(link)
+    if (isAdmin()) {
+      const remove = document.createElement('button')
+      remove.type = 'button'
+      remove.className = 'tree-file-remove'
+      remove.textContent = '×'
+      remove.setAttribute('aria-label', `${file.originalName} 삭제`)
+      remove.addEventListener('click', async () => {
+        if (!window.confirm(`${file.originalName} 파일을 삭제할까요?`)) return
+        try {
+          await apiRequest(`/api/files/${file.id}`, { method: 'DELETE' })
+          item.remove()
+          toast('파일을 삭제했습니다.')
+        } catch (error) { showRequestError(error) }
+      })
+      item.append(remove)
+    }
+    list.append(item)
+  }
+
+  const loadFiles = async () => {
+    const lists = document.querySelectorAll('[data-document-list]')
+    lists.forEach(list => list.replaceChildren())
+    const files = await apiRequest(buildFileListQuery())
+    files.forEach(renderFileMetadata)
+  }
+
+  const loadWorkspaceData = async () => {
+    try {
+      const user = await apiRequest('/api/auth/me')
+      authState.user = user
+      updateAccessUi()
+      await Promise.all([loadHighRiskItems(), loadFiles()])
+      if (!document.querySelector('#completed-list-content')?.hidden) await loadCompletedItems()
+    } catch (error) {
+      authState.user = null
+      updateAccessUi()
+      setEmptyRow(document.querySelector('#improvement-table-body'), 6, '로그인 후 개선 필요 건을 확인할 수 있습니다.')
+      const total = document.querySelector('#completed-total')
+      if (total) total.textContent = '완료 내역은 로그인 후 확인할 수 있습니다.'
+      if (error.status !== 401) showRequestError(error)
+    }
+  }
+
+  const loginButton = document.querySelector('#manager-auth-button')
+  loginButton?.addEventListener('click', () => {
+    if (authState.user) {
+      const content = document.createElement('div')
+      content.textContent = `${authState.user.displayName} 계정에서 로그아웃할까요?`
+      showModal('로그아웃', '로그아웃하면 다시 로그인해야 합니다.', content, '로그아웃', async () => {
+        try {
+          await apiRequest('/api/auth/logout', { method: 'POST' })
+          authState.user = null
+          authState.csrfToken = ''
+          closeModal()
+          updateAccessUi()
+          setEmptyRow(document.querySelector('#improvement-table-body'), 6, '로그인 후 개선 필요 건을 확인할 수 있습니다.')
+          toast('로그아웃했습니다.')
+        } catch (error) { showRequestError(error) }
+      })
+      return
+    }
+    const content = document.createElement('div')
+    const username = document.createElement('input')
+    username.autocomplete = 'username'
+    username.placeholder = '아이디'
+    const password = document.createElement('input')
+    password.type = 'password'
+    password.autocomplete = 'current-password'
+    password.placeholder = '비밀번호'
+    content.append(field('아이디', username), field('비밀번호', password))
+    showModal('사용자 로그인', '현장 조회 계정 또는 관리자 계정으로 로그인하세요.', content, '로그인', async (backdrop) => {
+      try {
+        const user = await apiRequest('/api/auth/login', { method: 'POST', body: JSON.stringify({ username: username.value.trim(), password: password.value }) })
+        authState.user = user
+        updateAccessUi()
+        closeModal()
+        await Promise.all([loadHighRiskItems(), loadFiles()])
+        toast(`${user.displayName}님, 로그인했습니다.`)
+      } catch (error) { showRequestError(error) }
+    })
+  })
+
+  const addImprovementButton = document.querySelector('#add-improvement-button')
+  addImprovementButton?.addEventListener('click', () => {
+    const content = document.createElement('div')
+    const assessmentType = document.createElement('select')
+    assessmentType.innerHTML = '<option value="REGULAR">정기 위험성평가</option><option value="AD_HOC">수시 위험성평가</option>'
+    const team = document.createElement('select')
+    team.innerHTML = '<option value="">팀 선택</option>' + Object.keys(teamProcesses).map(name => `<option value="${name}">${name}</option>`).join('')
+    const process = document.createElement('select')
+    const hazard = document.createElement('textarea')
+    hazard.placeholder = '예: Trouble 조치 작업 중 센서 감지에 따른 설비 작동'
+    const action = document.createElement('textarea')
+    action.placeholder = '예: Interlock Type 변경을 통한 설비 안정성 개선'
+    const frequency = document.createElement('select')
+    frequency.innerHTML = '<option value="1">1 · 거의 없음</option><option value="2">2 · 낮음</option><option value="3">3 · 있음</option><option value="4">4 · 높음</option><option value="5">5 · 빈번함</option>'
+    frequency.value = '2'
+    const severity = document.createElement('select')
+    severity.innerHTML = '<option value="1">1 · 영향 없음</option><option value="2">2 · 경미한 재해</option><option value="3">3 · 경중한 재해</option><option value="4">4 · 중대 재해</option>'
+    severity.value = '4'
+    const riskScore = document.createElement('strong')
+    riskScore.className = 'risk-score-preview'
+    const plannedDate = document.createElement('input')
+    plannedDate.type = 'date'
+    const assignee = document.createElement('input')
+    assignee.placeholder = '담당자 이름'
+    const refreshProcessOptions = () => {
+      const options = teamProcesses[team.value] || []
+      process.innerHTML = '<option value="">팀 전체</option>' + options.map(value => `<option value="${value}">${value}</option>`).join('')
+    }
+    const refreshRiskScore = () => {
+      const score = Number(frequency.value) * Number(severity.value)
+      riskScore.textContent = `위험도 ${score}`
+      riskScore.classList.toggle('high', score >= 8)
+    }
+    team.addEventListener('change', refreshProcessOptions)
+    frequency.addEventListener('change', refreshRiskScore)
+    severity.addEventListener('change', refreshRiskScore)
+    refreshProcessOptions()
+    refreshRiskScore()
+    const scoreRow = document.createElement('div')
+    scoreRow.className = 'form-row'
+    scoreRow.append(field('빈도', frequency), field('강도', severity))
+    const scorePreview = document.createElement('div')
+    scorePreview.className = 'risk-score-preview-row'
+    scorePreview.append(riskScore)
+    content.append(
+      field('평가 유형', assessmentType),
+      field('팀', team),
+      field('공정', process),
+      field('위험요인 및 재해형태', hazard),
+      field('개선(예방)대책', action),
+      scoreRow,
+      scorePreview,
+      field('개선 예정일', plannedDate),
+      field('담당자', assignee),
+    )
+    showModal('개선 필요 건 등록', '위험도 8 이상인 항목만 상단 목록에 노출됩니다.', content, '등록', async () => {
+      const score = Number(frequency.value) * Number(severity.value)
+      if (!team.value || !hazard.value.trim() || !action.value.trim()) {
+        toast('팀, 위험요인, 개선대책을 입력해 주세요.')
+        return
+      }
+      if (score < 8) {
+        toast('개선 필요 건은 위험도 8 이상만 등록할 수 있습니다.')
+        return
+      }
+      try {
+        await apiRequest('/api/improvements', {
+          method: 'POST',
+          body: JSON.stringify({
+            year: currentYear,
+            assessmentType: assessmentType.value,
+            team: team.value,
+            process: process.value,
+            hazardEvent: hazard.value.trim(),
+            improvementAction: action.value.trim(),
+            frequency: Number(frequency.value),
+            severity: Number(severity.value),
+            plannedDate: plannedDate.value || null,
+            assignee: assignee.value.trim(),
+          }),
+        })
+        closeModal()
+        await loadHighRiskItems()
+        toast('개선 필요 건을 등록했습니다.')
+      } catch (error) { showRequestError(error) }
+    })
+  })
+
+  const changeImprovementStatus = async (item, select) => {
+    const previousValue = item.status
+    const nextValue = select.value
+    if (nextValue === previousValue) return
+    const saveStatus = async (completedDate) => {
+      try {
+        await apiRequest(`/api/improvements/${item.id}/status`, {
+          method: 'PATCH',
+          body: JSON.stringify({ status: nextValue, completedDate: completedDate || null }),
+        })
+        closeModal()
+        await loadHighRiskItems()
+        if (!document.querySelector('#completed-list-content')?.hidden) await loadCompletedItems()
+        toast(nextValue === 'COMPLETED' ? '개선 완료 처리했습니다.' : '개선 진행 중으로 변경했습니다.')
+      } catch (error) {
+        select.value = previousValue
+        showRequestError(error)
+      }
+    }
+    if (nextValue !== 'COMPLETED') {
+      await saveStatus(null)
+      return
+    }
+    const content = document.createElement('div')
+    const date = document.createElement('input')
+    date.type = 'date'
+    date.value = new Date().toISOString().slice(0, 10)
+    content.append(field('개선 완료일', date, '완료일을 입력하면 완료 목록이 해당 날짜 기준으로 정렬됩니다.'))
+    showModal('개선 완료 처리', '완료일을 확인한 뒤 상태를 변경하세요.', content, '완료 처리', () => {
+      if (!date.value) { toast('완료일을 입력해 주세요.'); return }
+      saveStatus(date.value)
+    })
+    select.value = previousValue
+  }
+
+  document.querySelector('#completed-toggle')?.addEventListener('click', async (event) => {
+    const button = event.currentTarget
+    const panel = document.querySelector('#completed-list-content')
+    const open = button.getAttribute('aria-expanded') !== 'true'
+    button.setAttribute('aria-expanded', String(open))
+    panel.hidden = !open
+    if (open && authState.user) {
+      try { await loadCompletedItems() } catch (error) { showRequestError(error) }
+    }
+  })
+  document.querySelector('#completed-sort')?.addEventListener('change', async () => {
+    if (authState.user) {
+      try { await loadCompletedItems() } catch (error) { showRequestError(error) }
+    }
+  })
+
+  document.querySelectorAll('[data-file-upload]').forEach((input) => {
+    input.addEventListener('change', async () => {
+      const selected = Array.from(input.files || [])
+      if (!selected.length) return
+      const form = new FormData()
+      form.append('year', input.dataset.uploadYear)
+      form.append('assessmentType', input.dataset.uploadType)
+      form.append('category', input.dataset.uploadCategory)
+      form.append('team', input.dataset.uploadTeam)
+      form.append('process', input.dataset.uploadProcess || '')
+      selected.forEach(file => form.append('files', file))
+      try {
+        const result = await apiRequest('/api/files', { method: 'POST', body: form })
+        result.files.forEach(renderFileMetadata)
+        input.value = ''
+        toast(`${result.files.length}개 파일을 안전하게 저장했습니다.`)
+      } catch (error) { showRequestError(error) }
+    })
+  })
+
   const newAssessmentButton = document.querySelector('#new-assessment-button')
   newAssessmentButton?.addEventListener('click', () => {
     const form = document.createElement('div')

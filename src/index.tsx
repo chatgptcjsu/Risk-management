@@ -62,24 +62,58 @@ const assessmentFolders = [
     id: 'adhoc',
     name: '수시 위험성평가',
     description: '사유 발생 시 평가',
+    subfolders: [
+      { id: 'improvements', name: '개선요청 건' },
+    ],
   },
 ]
 
 const assessmentYears = [2026, 2025, 2024]
 
-function TeamFileUpload({ kind, path }: { kind: 'xlsx' | 'pptx'; path: string }) {
-  const label = kind === 'xlsx' ? '엑셀 업로드' : 'PPT 업로드'
-  const accept = kind === 'xlsx' ? '.xlsx,.xls' : '.pptx,.ppt'
+function TeamFileUpload({
+  year,
+  assessmentType,
+  category,
+  team,
+  process,
+  uploadType,
+}: {
+  year: number
+  assessmentType: 'REGULAR' | 'AD_HOC'
+  category: 'HAZARD_RISK' | 'IMPROVEMENT_REQUEST'
+  team: string
+  process: string
+  uploadType: 'xlsx' | 'pptx'
+}) {
+  const accept = uploadType === 'xlsx' ? '.xlsx,.xls' : '.pptx,.ppt'
+  const fileListId = `${year}-${assessmentType}-${category}-${team}-${process || 'team'}`.replace(/[^a-zA-Z0-9-]/g, '-')
   return (
-    <label class="tree-file-upload" title={label} aria-label={`${path} ${label}`}>
-      <Icon name="plus" />
-      <span>파일</span>
-      <input type="file" accept={accept} multiple data-regular-upload={kind} data-upload-path={path} />
-    </label>
+    <div class="tree-file-entry">
+      <label class="tree-file-upload" title={uploadType === 'xlsx' ? '유해위험요인 엑셀 업로드' : '개선요청 PPT 업로드'}>
+        <Icon name="plus" />
+        <span>파일 업로드</span>
+        <input type="file" accept={accept} multiple data-file-upload data-file-list-id={fileListId} data-upload-year={year} data-upload-type={assessmentType} data-upload-category={category} data-upload-team={team} data-upload-process={process} />
+      </label>
+      <ul class="tree-document-list" id={`files-${fileListId}`} data-document-list data-upload-year={year} data-upload-type={assessmentType} data-upload-category={category} data-upload-team={team} data-upload-process={process}></ul>
+    </div>
   )
 }
 
-function TeamTree({ branchId, parentPath, uploadType }: { branchId: string; parentPath: string; uploadType?: 'xlsx' | 'pptx' }) {
+function TeamTree({
+  branchId,
+  parentPath,
+  uploadType,
+  year,
+  assessmentType,
+  category,
+}: {
+  branchId: string
+  parentPath: string
+  uploadType: 'xlsx' | 'pptx'
+  year: number
+  assessmentType: 'REGULAR' | 'AD_HOC'
+  category: 'HAZARD_RISK' | 'IMPROVEMENT_REQUEST'
+}) {
   return (
     <>
       {departmentFolders.map((department, departmentIndex) => {
@@ -98,7 +132,7 @@ function TeamTree({ branchId, parentPath, uploadType }: { branchId: string; pare
                     <button class="tree-selectable tree-process-leaf" type="button" data-workspace-selection={processPath}>
                       <span class="tree-process-marker"></span><span>{process}</span>
                     </button>
-                    {uploadType ? <TeamFileUpload kind={uploadType} path={processPath} /> : null}
+                    <TeamFileUpload year={year} assessmentType={assessmentType} category={category} team={department.name} process={process} uploadType={uploadType} />
                   </div>
                 )
               })}
@@ -109,7 +143,7 @@ function TeamTree({ branchId, parentPath, uploadType }: { branchId: string; pare
             <button class="tree-selectable tree-team-leaf" type="button" data-workspace-selection={departmentPath}>
               <span class="tree-team-marker"></span><span>{department.name}</span>
             </button>
-            {uploadType ? <TeamFileUpload kind={uploadType} path={departmentPath} /> : null}
+            <TeamFileUpload year={year} assessmentType={assessmentType} category={category} team={department.name} process="" uploadType={uploadType} />
           </div>
         )
       })}
@@ -175,7 +209,14 @@ app.get('/', (c) => {
                                 <span class="tree-subfolder-marker"></span><span>{subfolder.name}</span><Icon name="down" className="tree-chevron" />
                               </button>
                               <div class="tree-subfolder-content" id={`subfolder-content-${subfolderId}`} hidden>
-                                <TeamTree branchId={subfolderId} parentPath={subfolderPath} uploadType={subfolder.id === 'hazards' ? 'xlsx' : 'pptx'} />
+                                <TeamTree
+                                  branchId={subfolderId}
+                                  parentPath={subfolderPath}
+                                  uploadType={subfolder.id === 'hazards' ? 'xlsx' : 'pptx'}
+                                  year={year}
+                                  assessmentType={folder.id === 'regular' ? 'REGULAR' : 'AD_HOC'}
+                                  category={subfolder.id === 'hazards' ? 'HAZARD_RISK' : 'IMPROVEMENT_REQUEST'}
+                                />
                               </div>
                             </div>
                           )
@@ -245,6 +286,8 @@ app.get('/', (c) => {
                 <output id="dashboard-size-value" for="dashboard-size-range">100%</output>
                 <button class="size-step-button" id="dashboard-size-increase" type="button" aria-label="대시보드 확대">+</button>
               </div>
+              <button class="button button-secondary" id="user-admin-button" type="button" hidden><Icon name="users" /> 사용자 관리</button>
+              <button class="button button-secondary" id="manager-auth-button" type="button"><Icon name="users" /> 로그인</button>
               <button class="button button-secondary" id="export-button" type="button"><Icon name="download" /> 내보내기</button>
               <button class="button button-primary" id="new-assessment-button" type="button"><Icon name="plus" /> 새 평가 만들기</button>
             </div>
@@ -286,6 +329,38 @@ app.get('/', (c) => {
               <div class="metric-value-row"><strong class="metric-value">12</strong><span class="metric-unit">건</span><span class="metric-trend trend-red">위험도 8 이상</span></div>
               <div class="metric-label">개선조치 미완료</div><div class="metric-footnote">기한 초과 <b class="text-red">3건</b></div>
             </article>
+          </section>
+
+          <section class="panel improvements-panel" id="high-risks">
+            <div class="panel-heading improvements-heading">
+              <div>
+                <div class="panel-title-row"><span class="risk-heading-icon"><Icon name="alert" /></span><h2>개선 필요 건</h2><span class="high-risk-pill">위험도 8 이상</span></div>
+                <p>위험도가 8 이상인 항목을 확인하고 개선 상태를 기록하세요.</p>
+              </div>
+              <button class="button button-primary" id="add-improvement-button" type="button"><Icon name="plus" /> 개선 건 등록</button>
+            </div>
+            <div class="table-wrap improvement-table-wrap">
+              <table class="improvement-table">
+                <thead><tr><th>위험도</th><th>위험요인 및 재해형태</th><th>평가 대상</th><th>개선(예방)대책</th><th>예정일</th><th>진행 단계</th></tr></thead>
+                <tbody id="improvement-table-body"><tr><td colspan="6" class="table-empty">로그인 후 개선 필요 건을 확인할 수 있습니다.</td></tr></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="panel completed-panel" id="completed-improvements">
+            <div class="panel-heading completed-heading">
+              <div><h2>개선 완료 항목</h2><p>완료일 기준으로 모아 보고, 항목을 선택해 상세 내용을 확인할 수 있습니다.</p></div>
+              <button class="button button-secondary" id="completed-toggle" type="button" aria-expanded="false" aria-controls="completed-list-content">완료 내역 보기 <Icon name="down" /></button>
+            </div>
+            <div id="completed-list-content" class="completed-list-content" hidden>
+              <div class="completed-toolbar"><span id="completed-total">완료 내역은 로그인 후 확인할 수 있습니다.</span><label for="completed-sort">정렬</label><select id="completed-sort"><option value="desc">최신 완료일순</option><option value="asc">오래된 완료일순</option></select></div>
+              <div class="table-wrap">
+                <table class="completed-table">
+                  <thead><tr><th>완료일</th><th>위험도</th><th>위험요인 및 재해형태</th><th>팀 / 공정</th><th>개선대책</th><th>상세</th></tr></thead>
+                  <tbody id="completed-table-body"><tr><td colspan="6" class="table-empty">완료 항목이 없습니다.</td></tr></tbody>
+                </table>
+              </div>
+            </div>
           </section>
 
           <section class="content-grid">
@@ -333,24 +408,6 @@ app.get('/', (c) => {
                 <div class="table-footer"><span>최근 업데이트 <b>오늘 10:42</b></span><button type="button" class="load-more">평가 목록 더 보기 <span>↓</span></button></div>
               </section>
 
-              <section class="panel risk-panel" id="high-risks">
-                <div class="panel-heading risk-panel-heading">
-                  <div><div class="panel-title-row"><span class="risk-heading-icon"><Icon name="alert" /></span><h2>우선 개선이 필요한 위험요인</h2><span class="high-risk-pill">위험도 8+</span></div><p>빠른 확인과 조치가 필요한 항목입니다.</p></div>
-                  <a class="text-link" href="#all-high-risks">전체 보기 <span>→</span></a>
-                </div>
-                <div class="risk-list">
-                  <article class="risk-item">
-                    <span class="risk-priority">01</span><div class="risk-item-main"><strong>덤프 체스트 점검용 발판 부식</strong><span>화장지 4호기 · 공무팀 보전파트</span></div><span class="risk-score score-critical">12</span><span class="risk-owner"><i class="author-avatar avatar-violet">김</i><span>김현구</span></span><span class="due-date overdue">기한 초과</span><button class="risk-arrow" type="button" aria-label="상세 보기">↗</button>
-                  </article>
-                  <article class="risk-item">
-                    <span class="risk-priority">02</span><div class="risk-item-main"><strong>컨베이어 구동부 방호덮개 이탈</strong><span>제지생산1팀 · 초지</span></div><span class="risk-score score-high">10</span><span class="risk-owner"><i class="author-avatar avatar-teal">김</i><span>김민수</span></span><span class="due-date">10월 22일</span><button class="risk-arrow" type="button" aria-label="상세 보기">↗</button>
-                  </article>
-                  <article class="risk-item">
-                    <span class="risk-priority">03</span><div class="risk-item-main"><strong>약품 투입구 주변 누출 흔적</strong><span>환경에너지팀 · 환경</span></div><span class="risk-score score-high">8</span><span class="risk-owner"><i class="author-avatar avatar-blue">이</i><span>이수진</span></span><span class="due-date">10월 25일</span><button class="risk-arrow" type="button" aria-label="상세 보기">↗</button>
-                  </article>
-                </div>
-                <div class="risk-panel-footer"><span class="risk-footer-check"><Icon name="check" /></span><span><b>작은 개선도 큰 사고를 막습니다.</b> 조치 결과를 사진과 함께 기록해 주세요.</span><button type="button" id="open-actions">조치 현황 보기 <span>→</span></button></div>
-              </section>
             </div>
 
             <aside class="secondary-column">

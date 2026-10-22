@@ -291,6 +291,41 @@ h1, h2, h3, p { margin-top: 0; }
 .risk-heading-icon { display: grid; width: 24px; height: 24px; place-items: center; border-radius: 7px; background: #fff0ee; color: #d96d64; }
 .risk-heading-icon svg { width: 14px; height: 14px; }
 .high-risk-pill { padding: 3px 6px; border-radius: 4px; background: #fff1ef; color: #d27168; font-size: 7px; font-weight: 700; }
+.improvements-panel, .completed-panel { margin-bottom: 15px; padding-top: 17px; }
+.improvements-heading, .completed-heading { align-items: center; }
+.improvements-heading .button { flex: 0 0 auto; }
+.improvement-table, .completed-table { width: 100%; min-width: 850px; border-collapse: collapse; text-align: left; }
+.improvement-table th, .completed-table th { height: 38px; padding: 0 11px; background: #fbfcfc; color: #8b9ba2; font-size: 9px; font-weight: 700; white-space: nowrap; }
+.improvement-table th:first-child, .improvement-table td:first-child,
+.completed-table th:first-child, .completed-table td:first-child { padding-left: 18px; }
+.improvement-table td, .completed-table td { min-height: 52px; padding: 9px 11px; border-top: 1px solid #eef2f3; color: #667982; font-size: 9px; vertical-align: middle; }
+.improvement-table tr:hover, .completed-table tr:hover { background: #fcfefd; }
+.table-empty { height: 66px; color: #93a2a8 !important; text-align: center; }
+.improvement-risk-score { display: inline-grid; min-width: 35px; height: 29px; place-items: center; padding: 0 6px; border-radius: 7px; background: #fff0ee; color: #d65e58; font-size: 11px; font-weight: 800; }
+.improvement-risk-score.score-very-high { background: #ffe7e4; color: #cb4844; }
+.improvement-hazard-cell, .improvement-action-cell { display: block; max-width: 270px; overflow: hidden; color: #52666e; font-size: 9px; line-height: 1.5; text-overflow: ellipsis; }
+.improvement-target-cell { display: flex; min-width: 125px; flex-direction: column; gap: 3px; color: #50646d; font-size: 9px; font-weight: 700; }
+.improvement-target-cell small { color: #94a2a8; font-size: 8px; font-weight: 500; }
+.improvement-date-cell { color: #819198; font-size: 8px; white-space: nowrap; }
+.improvement-status-select { min-width: 125px; height: 29px; padding: 0 8px; border: 1px solid #e4eaec; border-radius: 6px; background: #fff; color: #71818a; font-size: 8px; }
+.improvement-status-select.status-in-progress { border-color: #f0dfc2; background: #fffaf1; color: #a97831; }
+.improvement-status-select.status-completed { border-color: #d2eadf; background: #f2faf5; color: #368365; }
+.completed-heading h2 { margin: 0; color: #2a414d; font-size: 12px; font-weight: 800; }
+.completed-heading p { margin: 5px 0 0; color: #9aa8ae; font-size: 8px; }
+.completed-heading .button svg { width: 13px; height: 13px; transition: transform .15s; }
+.completed-heading .button[aria-expanded="true"] svg { transform: rotate(180deg); }
+.completed-list-content { margin-top: 14px; border-top: 1px solid #edf1f2; }
+.completed-list-content[hidden] { display: none !important; }
+.completed-toolbar { display: flex; align-items: center; gap: 8px; padding: 12px 18px; color: #85959c; font-size: 8px; }
+.completed-toolbar > span { margin-right: auto; }
+.completed-toolbar label { color: #98a6ab; }
+.completed-toolbar select { height: 29px; padding: 0 8px; border: 1px solid #e6ecee; border-radius: 5px; background: #fff; color: #5d7079; font-size: 8px; }
+.completed-details-button { padding: 5px 8px; border: 1px solid #e2e9eb; border-radius: 5px; background: #fff; color: #3b8976; font-size: 8px; font-weight: 700; }
+.completed-details-button:hover { background: #f3f9f6; }
+.improvement-details-modal { display: grid; gap: 12px; }
+.improvement-detail-block { padding: 10px; border: 1px solid #edf1f2; border-radius: 7px; background: #fbfcfc; }
+.improvement-detail-block strong { display: block; margin-bottom: 5px; color: #5b7078; font-size: 9px; }
+.improvement-detail-block p { margin: 0; color: #73848b; font-size: 9px; line-height: 1.6; white-space: pre-wrap; }
 .risk-list { margin-top: 13px; }
 .risk-item { display: grid; grid-template-columns: 25px minmax(120px, 1fr) 35px 85px 67px 22px; align-items: center; gap: 9px; min-height: 55px; padding: 8px 16px; border-top: 1px solid #f0f3f4; }
 .risk-priority { color: #c0cbd0; font-family: 'Manrope', sans-serif; font-size: 9px; font-weight: 700; }
