@@ -509,6 +509,76 @@ h1, h2, h3, p { margin-top: 0; }
   .matrix-cell { font-size: 8px; }
 }
 
+.excel-modal-card { display: flex; width: min(1480px, calc(100vw - 28px)); max-height: calc(100vh - 28px); flex-direction: column; }
+.excel-modal-card .modal-body { display: block; min-height: 0; overflow: auto; padding: 15px; }
+.excel-modal-card .modal-head, .excel-modal-card .modal-foot { flex: 0 0 auto; }
+.excel-assessment-start { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px; }
+.excel-assessment-start .form-field textarea { min-height: 58px; }
+.excel-assessment-editor { display: grid; gap: 12px; }
+.excel-editor-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.excel-editor-head h3 { margin: 0 0 5px; color: #273f4b; font-size: 15px; }
+.excel-editor-head p { max-width: 790px; margin: 0; color: #819199; font-size: 10px; line-height: 1.55; }
+.excel-risk-count { flex: 0 0 auto; padding: 7px 9px; border: 1px solid #f1d6d2; border-radius: 6px; background: #fff4f2; color: #c7544d; font-size: 9px; }
+.excel-table-wrap { width: 100%; overflow: auto; border: 1px solid #dce4e7; border-radius: 7px; }
+.excel-entry-table { width: 100%; min-width: 1470px; border-collapse: separate; border-spacing: 0; background: #fff; text-align: left; }
+.excel-entry-table th, .excel-entry-table td { padding: 6px; border-right: 1px solid #e4eaec; border-bottom: 1px solid #e4eaec; vertical-align: middle; }
+.excel-entry-table thead th { position: sticky; z-index: 1; top: 0; background: #edf4f5; color: #415860; font-size: 9px; line-height: 1.35; text-align: center; }
+.excel-entry-table tbody th { width: 38px; background: #f7f9fa; color: #778890; font-size: 10px; text-align: center; }
+.excel-entry-table td { min-width: 100px; }
+.excel-entry-table td:nth-child(2) { min-width: 115px; }
+.excel-entry-table td:nth-child(3), .excel-entry-table td:nth-child(4), .excel-entry-table td:nth-child(8) { min-width: 190px; }
+.excel-entry-table td:nth-child(5), .excel-entry-table td:nth-child(6) { min-width: 70px; }
+.excel-entry-table td:nth-child(7) { min-width: 75px; text-align: center; }
+.excel-entry-table td:nth-child(9), .excel-entry-table td:nth-child(10), .excel-entry-table td:nth-child(11) { min-width: 110px; }
+.excel-entry-table td:nth-child(12), .excel-entry-table td:nth-child(13) { min-width: 100px; }
+.excel-entry-table input, .excel-entry-table select, .excel-entry-table textarea { width: 100%; min-height: 31px; padding: 5px 6px; border: 1px solid #dce4e7; border-radius: 4px; background: #fff; color: #334852; font-size: 9px; }
+.excel-entry-table textarea { min-height: 48px; resize: vertical; }
+.excel-entry-table input:focus, .excel-entry-table select:focus, .excel-entry-table textarea:focus { border-color: #54ad98; outline: 0; box-shadow: 0 0 0 2px rgba(47,164,136,.1); }
+.excel-entry-table .excel-score-input { min-width: 68px; }
+.excel-risk-result { text-align: center; }
+.excel-risk-score { display: inline-grid; min-width: 30px; min-height: 25px; place-items: center; border-radius: 5px; background: #edf4ef; color: #327b5b; font-size: 11px; }
+.excel-risk-score.high-risk-score { background: #ffe5e3; color: #ce333b; }
+.excel-high-risk-row { background: #fffafa; }
+.excel-remove-row { padding: 5px 7px; border: 1px solid #e9d7d7; border-radius: 4px; background: #fff; color: #b9595e; font-size: 9px; }
+.excel-editor-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: #839199; font-size: 9px; }
+.excel-add-row { padding: 7px 11px; border: 1px solid #b6dace; border-radius: 5px; background: #f2faf6; color: #29866e; font-size: 10px; font-weight: 700; }
+.high-risk-queue { display: grid; gap: 14px; }
+.queue-summary h3 { margin: 0 0 5px; color: #344b56; font-size: 14px; }
+.queue-summary p { margin: 0; color: #84949b; font-size: 10px; line-height: 1.6; }
+.high-risk-queue-list { display: grid; gap: 8px; max-height: 55vh; overflow: auto; }
+.high-risk-queue-item { display: grid; grid-template-columns: minmax(0, 1fr) 55px auto; align-items: center; gap: 12px; padding: 10px; border: 1px solid #f0d8d5; border-radius: 7px; background: #fffafa; }
+.queue-item-description { display: grid; gap: 4px; min-width: 0; }
+.queue-item-description strong { overflow: hidden; color: #4c5e65; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.queue-item-description small { overflow: hidden; color: #8e9ba0; font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
+.queue-risk-score { display: grid; width: 42px; height: 34px; place-items: center; border-radius: 6px; background: #ffe1df; color: #c63b43; font-size: 11px; font-weight: 800; }
+.queue-ppt-button { height: 31px; white-space: nowrap; }
+.queue-modal-card { width: min(760px, 100%); }
+.excel-back-button { margin-right: auto; }
+.ppt-modal-card { width: min(1320px, 100%); }
+.ppt-modal-card .modal-body { padding: 10px; }
+.ppt-sheet-meta span { padding: 3px 5px; color: #38474d; font-size: 9px; font-weight: 700; }
+.ppt-progress-ribbon { grid-template-columns: repeat(10, minmax(58px, 1fr)); }
+.ppt-photo-row { display: grid; grid-template-columns: 1fr 1fr; }
+.ppt-photo-row > div { min-width: 0; }
+.ppt-photo-row .ppt-photo-cell { min-height: 170px; }
+
+@media (max-width: 860px) {
+  .excel-modal-card { width: min(100%, calc(100vw - 16px)); max-height: calc(100vh - 16px); }
+  .excel-modal-card .modal-body { padding: 9px; }
+  .excel-editor-head { flex-direction: column; }
+  .high-risk-queue-item { grid-template-columns: minmax(0, 1fr) auto; }
+  .queue-risk-score { grid-column: 2; grid-row: 1; }
+  .queue-ppt-button { grid-column: 1 / -1; justify-self: start; }
+}
+@media (max-width: 560px) {
+  .excel-assessment-start { grid-template-columns: 1fr; }
+  .excel-editor-actions { align-items: flex-start; flex-direction: column; }
+  .ppt-sheet-header { align-items: flex-start; }
+  .ppt-sheet-meta { flex-wrap: wrap; }
+  .ppt-photo-row { grid-template-columns: 1fr 1fr; }
+  .ppt-progress-ribbon { grid-template-columns: repeat(10, 58px); }
+}
+
 @media (min-width: 1500px) {
   .page-content { padding-right: 45px; padding-left: 45px; }
   .topbar { padding-right: 45px; padding-left: 45px; }
