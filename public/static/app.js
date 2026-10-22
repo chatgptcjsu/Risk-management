@@ -201,9 +201,17 @@
         column(afterEstimate)
         const dateInput = (key, label) => {
           const control = document.createElement('input')
-          control.type = 'date'
+          control.setAttribute('aria-label', key === 'completionDate' ? '완료일 (안전보건팀 전용)' : label)
           control.value = row[key] || ''
-          control.setAttribute('aria-label', label)
+          if (key === 'completionDate') {
+            control.type = 'text'
+            control.readOnly = true
+            control.placeholder = '안전보건팀 입력'
+            control.title = '완료일은 안전보건팀에서 입력합니다.'
+            control.className = 'excel-team-only-input'
+            return control
+          }
+          control.type = 'date'
           control.addEventListener('change', () => { row[key] = control.value })
           return control
         }

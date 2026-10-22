@@ -533,6 +533,7 @@ h1, h2, h3, p { margin-top: 0; }
 .excel-entry-table td:nth-child(12), .excel-entry-table td:nth-child(13) { min-width: 100px; }
 .excel-entry-table input, .excel-entry-table select, .excel-entry-table textarea { width: 100%; min-height: 31px; padding: 5px 6px; border: 1px solid #dce4e7; border-radius: 4px; background: #fff; color: #334852; font-size: 9px; }
 .excel-entry-table textarea { min-height: 48px; resize: vertical; }
+.excel-entry-table .excel-team-only-input { background: #f0f2f3; color: #89979d; cursor: not-allowed; }
 .excel-entry-table input:focus, .excel-entry-table select:focus, .excel-entry-table textarea:focus { border-color: #54ad98; outline: 0; box-shadow: 0 0 0 2px rgba(47,164,136,.1); }
 .excel-entry-table .excel-score-input { min-width: 68px; }
 .excel-risk-result { text-align: center; }
