@@ -11,7 +11,8 @@
 - 수시: 개선요청 PPT/PPTX 업로드만 허용
 - 파일 메타데이터 MariaDB 저장, 바이너리 `data/uploads/`에 저장, 목록·다운로드·관리자 삭제 API
 - 빈도×강도 위험도 계산, 위험도 8 이상 개선 건 테이블, 진행/완료 상태 및 완료일 정렬
-- FIELD 조회, MANAGER 수정/업로드, ADMIN 사용자 및 파일 관리
+- 일반 기능은 로그인 없이 조회·다운로드·업로드·개선 건 등록·상태 변경 가능
+- 관리자 로그인은 사용자 관리와 파일 삭제에만 필요 (일반 사용자는 `비로그인 사용자`로 기록)
 - `/health` 상태 확인 엔드포인트
 
 ## 진입 경로
@@ -34,7 +35,8 @@ pm2 start ecosystem.config.cjs
 
 ## 기술 및 배포 상태
 - 런타임: Java 17, Spring Boot 3.5.16, MariaDB 11.8.6
-- 인증: Spring Security 세션 인증 및 FIELD/MANAGER/ADMIN 권한
+- 접근 제어: 일반 API는 공개, `/api/admin/**` 및 파일 삭제는 ADMIN 세션 인증 유지
+- CSRF: 공개 쓰기 요청도 쿠키 기반 CSRF 토큰 검증 유지
 - 저장: MariaDB 메타데이터 + 샌드박스 로컬 파일 시스템
 - 저장소: `https://github.com/chatgptcjsu/Risk-management` (`main` 브랜치)
 - Spring Boot는 Cloudflare Pages에서 직접 실행되지 않으므로 실제 운영 배포에는 Java 지원 서버와 영속 파일 스토리지가 필요합니다.

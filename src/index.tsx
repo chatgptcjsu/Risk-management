@@ -253,7 +253,7 @@ app.get('/', (c) => {
                 <button class="size-step-button" id="dashboard-size-increase" type="button" aria-label="대시보드 확대">+</button>
               </div>
               <button class="button button-secondary" id="user-admin-button" type="button" hidden><Icon name="users" /> 사용자 관리</button>
-              <button class="button button-secondary" id="manager-auth-button" type="button"><Icon name="users" /> 로그인</button>
+              <button class="button button-secondary" id="manager-auth-button" type="button"><Icon name="users" /> 관리자 로그인</button>
               <button class="button button-secondary" id="export-button" type="button"><Icon name="download" /> 내보내기</button>
               <button class="button button-primary" id="new-assessment-button" type="button"><Icon name="plus" /> 새 평가 만들기</button>
             </div>
@@ -309,7 +309,7 @@ app.get('/', (c) => {
             <div class="table-wrap improvement-table-wrap">
               <table class="improvement-table">
                 <thead><tr><th>위험도</th><th>위험요인 및 재해형태</th><th>평가 대상</th><th>개선(예방)대책</th><th>예정일</th><th>진행 단계</th></tr></thead>
-                <tbody id="improvement-table-body"><tr><td colspan="6" class="table-empty">로그인 후 개선 필요 건을 확인할 수 있습니다.</td></tr></tbody>
+                <tbody id="improvement-table-body"><tr><td colspan="6" class="table-empty">개선 필요 건을 불러오는 중입니다.</td></tr></tbody>
               </table>
             </div>
           </section>
@@ -320,7 +320,7 @@ app.get('/', (c) => {
               <button class="button button-secondary" id="completed-toggle" type="button" aria-expanded="false" aria-controls="completed-list-content">완료 내역 보기 <Icon name="down" /></button>
             </div>
             <div id="completed-list-content" class="completed-list-content" hidden>
-              <div class="completed-toolbar"><span id="completed-total">완료 내역은 로그인 후 확인할 수 있습니다.</span><label for="completed-sort">정렬</label><select id="completed-sort"><option value="desc">최신 완료일순</option><option value="asc">오래된 완료일순</option></select></div>
+              <div class="completed-toolbar"><span id="completed-total">완료 내역을 불러오는 중입니다.</span><label for="completed-sort">정렬</label><select id="completed-sort"><option value="desc">최신 완료일순</option><option value="asc">오래된 완료일순</option></select></div>
               <div class="table-wrap">
                 <table class="completed-table">
                   <thead><tr><th>완료일</th><th>위험도</th><th>위험요인 및 재해형태</th><th>팀 / 공정</th><th>개선대책</th><th>상세</th></tr></thead>
@@ -424,14 +424,13 @@ app.get('/', (c) => {
             <div class="table-wrap">
               <table class="folder-files-table">
                 <thead><tr><th>파일명</th><th>유형</th><th>파일 크기</th><th>올린 사람</th><th>업로드 일시</th><th>동작</th></tr></thead>
-                <tbody id="folder-file-list"><tr><td colspan="6" class="table-empty">로그인 후 파일을 확인할 수 있습니다.</td></tr></tbody>
+                <tbody id="folder-file-list"><tr><td colspan="6" class="table-empty">파일을 불러오는 중입니다.</td></tr></tbody>
               </table>
             </div>
             <div id="folder-empty-state" class="folder-empty-state" hidden>
               <span class="folder-empty-icon"><Icon name="file" /></span>
               <strong id="folder-empty-title">아직 등록된 파일이 없습니다.</strong>
               <p id="folder-empty-instruction">이 분류에 양식을 추가할 수 있습니다.</p>
-              <button class="button button-secondary" id="folder-login-button" type="button" hidden>로그인하고 파일 보기</button>
             </div>
           </section>
 

@@ -81,12 +81,9 @@ public class SecurityConfig {
                         .csrfTokenRepository(csrfRepository)
                         .csrfTokenRequestHandler(csrfHandler))
                 .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers("/api/auth/csrf", "/api/auth/login", "/api/auth/me").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.POST, "/api/files/**", "/api/improvements").hasAnyRole("MANAGER", "ADMIN")
-                        .requestMatchers(HttpMethod.PATCH, "/api/improvements/**").hasAnyRole("MANAGER", "ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/files/**").hasRole("ADMIN")
-                        .requestMatchers("/api/**").authenticated()
+                        .requestMatchers("/api/**").permitAll()
                         .anyRequest().permitAll())
                 .exceptionHandling(exceptions -> exceptions
                         .authenticationEntryPoint((request, response, exception) -> writeJsonError(

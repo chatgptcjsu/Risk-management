@@ -13,6 +13,7 @@ import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -58,7 +59,8 @@ public class FileController {
             @RequestParam(defaultValue = "") String process,
             @RequestParam("files") List<MultipartFile> files,
             Authentication authentication) {
-        List<StoredFile> saved = storage.store(year, assessmentType, category, team, process, files, authentication.getName());
+        String uploadedBy = actorName(authentication);
+        List<StoredFile> saved = storage.store(year, assessmentType, category, team, process, files, uploadedBy);
         return new UploadResponse(saved.stream().map(this::toDto).toList());
     }
 
@@ -84,6 +86,13 @@ public class FileController {
         }
         storage.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    private String actorName(Authentication authentication) {
+        return authentication == null || !authentication.isAuthenticated()
+                || authentication instanceof AnonymousAuthenticationToken
+                ? "비로그인 사용자"
+                : authentication.getName();
     }
 
     private FileMetadataDto toDto(StoredFile file) {

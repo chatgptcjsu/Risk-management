@@ -6,6 +6,7 @@ import com.safetyon.model.ApiDtos.StatusChangeDto;
 import com.safetyon.model.ApiDtos.StatusUpdateRequest;
 import com.safetyon.service.ImprovementService;
 import jakarta.validation.Valid;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -24,6 +25,13 @@ import java.util.Map;
 public class ImprovementController {
     private final ImprovementService service;
 
+    private String actorName(Authentication authentication) {
+        return authentication == null || !authentication.isAuthenticated()
+                || authentication instanceof AnonymousAuthenticationToken
+                ? "비로그인 사용자"
+                : authentication.getName();
+    }
+
     public ImprovementController(ImprovementService service) {
         this.service = service;
     }
@@ -41,14 +49,14 @@ public class ImprovementController {
     @PostMapping
     public ImprovementItemDto create(@Valid @RequestBody ImprovementCreateRequest request,
                                      Authentication authentication) {
-        return service.create(request, authentication.getName());
+        return service.create(request, actorName(authentication));
     }
 
     @PatchMapping("/{id}/status")
     public ImprovementItemDto updateStatus(@PathVariable long id,
                                            @Valid @RequestBody StatusUpdateRequest request,
                                            Authentication authentication) {
-        return service.updateStatus(id, request, authentication.getName());
+        return service.updateStatus(id, request, actorName(authentication));
     }
 
     @GetMapping("/{id}/history")

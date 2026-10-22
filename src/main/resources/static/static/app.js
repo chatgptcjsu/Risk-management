@@ -102,25 +102,24 @@
     return payload
   }
 
-  const isManager = () => ['MANAGER', 'ADMIN'].includes(authState.user?.role)
   const isAdmin = () => authState.user?.role === 'ADMIN'
   let activeFolderScope = null
 
   const updateAccessUi = () => {
     const loginButton = document.querySelector('#manager-auth-button')
-    if (loginButton) loginButton.textContent = authState.user ? `${authState.user.displayName} · 로그아웃` : '로그인'
+    if (loginButton) loginButton.textContent = authState.user ? `${authState.user.displayName} · 로그아웃` : '관리자 로그인'
     const userAdminButton = document.querySelector('#user-admin-button')
     if (userAdminButton) userAdminButton.hidden = !isAdmin()
     const addImprovementButton = document.querySelector('#add-improvement-button')
-    if (addImprovementButton) addImprovementButton.hidden = !isManager()
+    if (addImprovementButton) addImprovementButton.hidden = false
     const folderUploadButton = document.querySelector('#folder-upload-button')
     const categoryAllowsUpload = activeFolderScope && (
       activeFolderScope.category === 'IMPROVEMENT_REQUEST' ||
       (activeFolderScope.category === 'HAZARD_RISK' && activeFolderScope.assessmentType === 'REGULAR')
     )
-    if (folderUploadButton) folderUploadButton.hidden = !isManager() || !categoryAllowsUpload
+    if (folderUploadButton) folderUploadButton.hidden = !categoryAllowsUpload
     document.querySelectorAll('.improvement-status-select').forEach((select) => {
-      select.disabled = !isManager()
+      select.disabled = false
     })
   }
 
@@ -151,7 +150,7 @@
     const allowedUpload = scope.category === 'HAZARD_RISK'
       ? scope.assessmentType === 'REGULAR'
       : scope.category === 'IMPROVEMENT_REQUEST'
-    uploadButton.hidden = !isManager() || !allowedUpload
+    uploadButton.hidden = !allowedUpload
     uploadInput.accept = scope.category === 'HAZARD_RISK' ? '.xlsx,.xls' : '.pptx,.ppt'
     const instruction = document.querySelector('#folder-empty-instruction')
     instruction.textContent = scope.category === 'HAZARD_RISK'
@@ -163,15 +162,6 @@
   const loadFolderFiles = async () => {
     const tbody = document.querySelector('#folder-file-list')
     if (!tbody || !activeFolderScope) return
-    if (!authState.user) {
-      setEmptyRow(tbody, 6, '파일을 보려면 로그인해 주세요.')
-      document.querySelector('#folder-empty-state').hidden = false
-      document.querySelector('#folder-empty-title').textContent = '로그인이 필요합니다.'
-      document.querySelector('#folder-empty-instruction').textContent = '로그인하면 이 팀·공정에 업로드된 파일을 확인할 수 있습니다.'
-      document.querySelector('#folder-login-button').hidden = false
-      document.querySelector('#folder-file-count').textContent = '로그인 필요'
-      return
-    }
     try {
       const query = new URLSearchParams({
         year: activeFolderScope.year,
@@ -188,11 +178,10 @@
       })
       document.querySelector('#folder-file-count').textContent = `${visibleFiles.length}개 파일`
       document.querySelector('#folder-empty-state').hidden = visibleFiles.length > 0
-      document.querySelector('#folder-login-button').hidden = true
       document.querySelector('#folder-empty-title').textContent = '아직 등록된 파일이 없습니다.'
-      document.querySelector('#folder-empty-instruction').textContent = isManager()
-        ? (activeFolderScope.category === 'HAZARD_RISK' ? '엑셀 파일을 업로드할 수 있습니다.' : '개선요청 PPT 파일을 업로드할 수 있습니다.')
-        : '평가 담당자에게 해당 분류의 파일 업로드를 요청하세요.'
+      document.querySelector('#folder-empty-instruction').textContent = activeFolderScope.category === 'HAZARD_RISK'
+        ? '엑셀 파일을 업로드할 수 있습니다.'
+        : '개선요청 PPT 파일을 업로드할 수 있습니다.'
       if (!visibleFiles.length) {
         setEmptyRow(tbody, 6, '등록된 파일이 없습니다.')
         return
@@ -250,9 +239,9 @@
 
   const showRequestError = (error) => {
     if (error.status === 401) {
-      toast('로그인이 필요합니다. 상단의 로그인 버튼을 눌러 주세요.')
+      toast('요청 권한이 없습니다. 관리자 기능은 관리자 로그인이 필요합니다.')
     } else if (error.status === 403) {
-      toast('이 작업은 관리자 또는 평가 담당자 권한이 필요합니다.')
+      toast('관리자 전용 기능입니다. 관리자 로그인 후 이용해 주세요.')
     } else {
       toast(error.message || '요청 처리 중 오류가 발생했습니다.')
     }
@@ -264,7 +253,7 @@
     select.setAttribute('aria-label', `${item.hazardEvent} 개선 상태`)
     select.innerHTML = '<option value="IN_PROGRESS">개선 진행 중</option><option value="COMPLETED">개선 완료</option>'
     select.value = item.status
-    select.disabled = !isManager()
+    select.disabled = false
     select.dataset.improvementId = item.id
     return select
   }
@@ -273,7 +262,7 @@
     const tbody = document.querySelector('#improvement-table-body')
     if (!tbody) return
     if (!items.length) {
-      setEmptyRow(tbody, 6, authState.user ? '위험도 8 이상인 미완료 개선 건이 없습니다.' : '로그인 후 개선 필요 건을 확인할 수 있습니다.')
+      setEmptyRow(tbody, 6, '위험도 8 이상인 미완료 개선 건이 없습니다.')
       return
     }
     tbody.replaceChildren()
@@ -399,27 +388,17 @@
 
   const loadWorkspaceData = async () => {
     try {
-      const user = await apiRequest('/api/auth/me')
-      if (!user) {
-        authState.user = null
-        updateAccessUi()
-        setEmptyRow(document.querySelector('#improvement-table-body'), 6, '로그인 후 개선 필요 건을 확인할 수 있습니다.')
-        const total = document.querySelector('#completed-total')
-        if (total) total.textContent = '완료 내역은 로그인 후 확인할 수 있습니다.'
-        return
-      }
-      authState.user = user
-      updateAccessUi()
+      authState.user = await apiRequest('/api/auth/me')
+    } catch {
+      authState.user = null
+    }
+    updateAccessUi()
+    try {
       await loadHighRiskItems()
       if (activeFolderScope) await loadFolderFiles()
       if (!document.querySelector('#completed-list-content')?.hidden) await loadCompletedItems()
     } catch (error) {
-      authState.user = null
-      updateAccessUi()
-      setEmptyRow(document.querySelector('#improvement-table-body'), 6, '로그인 후 개선 필요 건을 확인할 수 있습니다.')
-      const total = document.querySelector('#completed-total')
-      if (total) total.textContent = '완료 내역은 로그인 후 확인할 수 있습니다.'
-      if (error.status !== 401) showRequestError(error)
+      showRequestError(error)
     }
   }
 
@@ -435,9 +414,10 @@
           authState.csrfToken = ''
           closeModal()
           updateAccessUi()
-          setEmptyRow(document.querySelector('#improvement-table-body'), 6, '로그인 후 개선 필요 건을 확인할 수 있습니다.')
+          await loadHighRiskItems()
           if (activeFolderScope) await loadFolderFiles()
-          toast('로그아웃했습니다.')
+          if (!document.querySelector('#completed-list-content')?.hidden) await loadCompletedItems()
+          toast('관리자 로그아웃했습니다. 일반 기능은 계속 사용할 수 있습니다.')
         } catch (error) { showRequestError(error) }
       })
       return
@@ -451,7 +431,7 @@
     password.autocomplete = 'current-password'
     password.placeholder = '비밀번호'
     content.append(field('아이디', username), field('비밀번호', password))
-    showModal('사용자 로그인', '현장 조회 계정 또는 관리자 계정으로 로그인하세요.', content, '로그인', async (backdrop) => {
+    showModal('관리자 로그인', '사용자 관리와 파일 삭제를 위한 관리자 인증입니다. 파일 조회·업로드와 개선 상태 관리는 로그인 없이 이용할 수 있습니다.', content, '관리자 로그인', async (backdrop) => {
       try {
         const user = await apiRequest('/api/auth/login', { method: 'POST', body: JSON.stringify({ username: username.value.trim(), password: password.value }) })
         authState.user = user
@@ -594,14 +574,12 @@
     const open = button.getAttribute('aria-expanded') !== 'true'
     button.setAttribute('aria-expanded', String(open))
     panel.hidden = !open
-    if (open && authState.user) {
+    if (open) {
       try { await loadCompletedItems() } catch (error) { showRequestError(error) }
     }
   })
   document.querySelector('#completed-sort')?.addEventListener('change', async () => {
-    if (authState.user) {
-      try { await loadCompletedItems() } catch (error) { showRequestError(error) }
-    }
+    try { await loadCompletedItems() } catch (error) { showRequestError(error) }
   })
 
   document.querySelectorAll('[data-file-upload]').forEach((input) => {
@@ -816,14 +794,11 @@
     activeFolderScope = null
   })
 
-  document.querySelector('#folder-login-button')?.addEventListener('click', () => document.querySelector('#manager-auth-button')?.click())
-  document.querySelector('#folder-login-button')?.addEventListener('click', () => document.querySelector('#manager-auth-button')?.click())
   const folderUploadInput = document.querySelector('#team-folder-file-input')
   document.querySelector('#folder-upload-button')?.addEventListener('click', () => folderUploadInput?.click())
   folderUploadInput?.addEventListener('change', async () => {
     const selected = Array.from(folderUploadInput.files || [])
     if (!selected.length || !activeFolderScope) return
-    if (!isManager()) { toast('파일 업로드는 평가 담당자 권한이 필요합니다.'); return }
     const form = new FormData()
     form.append('year', String(activeFolderScope.year))
     form.append('assessmentType', activeFolderScope.assessmentType)
