@@ -54,8 +54,23 @@ app.get('/', (c) => {
 
         <div class="nav-section-label">WORKSPACE</div>
         <nav class="side-nav" aria-label="주 메뉴">
-          <a class="nav-item active" href="#overview"><Icon name="grid" /><span>대시보드</span></a>
-          <a class="nav-item" href="#assessments"><Icon name="clipboard" /><span>위험성평가</span><span class="nav-count">24</span></a>
+          <a class="nav-item active" data-dashboard-link href="#overview"><Icon name="grid" /><span>대시보드</span></a>
+          <button class="nav-item nav-disclosure" id="assessment-nav-toggle" type="button" aria-expanded="false" aria-controls="assessment-categories"><Icon name="clipboard" /><span>위험성평가</span><span class="nav-count">24</span><Icon name="down" className="nav-chevron" /></button>
+          <div class="assessment-categories" id="assessment-categories" hidden>
+            <a class="nav-subitem department-link" href="#assessments" data-department="제지생산1팀">제지생산1팀</a>
+            <details class="nav-department-group"><summary class="nav-subitem department-link" data-department="제지생산2팀">제지생산2팀</summary><div class="nav-leaves"><a class="nav-subitem nav-leaf department-link" href="#assessments" data-department="제지생산2팀 제지카타">제지카타</a><a class="nav-subitem nav-leaf department-link" href="#assessments" data-department="제지생산2팀 포장">포장</a><a class="nav-subitem nav-leaf department-link" href="#assessments" data-department="제지생산2팀 원지 포장">원지 포장</a></div></details>
+            <a class="nav-subitem department-link" href="#assessments" data-department="제지품질보증팀">제지품질보증팀</a>
+            <a class="nav-subitem department-link" href="#assessments" data-department="화장지생산팀 초지">화장지생산팀(초지)</a>
+            <a class="nav-subitem department-link" href="#assessments" data-department="화장지생산팀 가공">화장지생산팀(가공)</a>
+            <a class="nav-subitem department-link" href="#assessments" data-department="화장지품질보증팀">화장지품질보증팀</a>
+            <a class="nav-subitem department-link" href="#assessments" data-department="패드생산팀">패드생산팀</a>
+            <a class="nav-subitem department-link" href="#assessments" data-department="패드품질보증팀">패드품질보증팀</a>
+            <a class="nav-subitem department-link" href="#assessments" data-department="공무팀">공무팀</a>
+            <a class="nav-subitem department-link" href="#assessments" data-department="전기팀">전기팀</a>
+            <a class="nav-subitem department-link" href="#assessments" data-department="구매팀">구매팀</a>
+            <details class="nav-department-group"><summary class="nav-subitem department-link" data-department="물류팀">물류팀</summary><div class="nav-leaves"><a class="nav-subitem nav-leaf department-link" href="#assessments" data-department="물류팀 AGV파트">AGV파트</a></div></details>
+            <details class="nav-department-group"><summary class="nav-subitem department-link" data-department="환경에너지">환경에너지</summary><div class="nav-leaves"><a class="nav-subitem nav-leaf department-link" href="#assessments" data-department="환경에너지 에너지">에너지</a></div></details>
+          </div>
           <a class="nav-item" href="#high-risks"><Icon name="alert" /><span>개선조치 관리</span><span class="nav-dot"></span></a>
           <a class="nav-item" href="#documents"><Icon name="file" /><span>문서 보관함</span></a>
         </nav>

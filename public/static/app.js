@@ -811,12 +811,67 @@
     button.addEventListener('click', () => toast('상세 화면은 다음 단계에서 연결됩니다.'))
   })
 
+  const assessmentNavToggle = document.querySelector('#assessment-nav-toggle')
+  const assessmentCategories = document.querySelector('#assessment-categories')
+  assessmentNavToggle?.addEventListener('click', () => {
+    const expanded = assessmentNavToggle.getAttribute('aria-expanded') === 'true'
+    assessmentNavToggle.setAttribute('aria-expanded', String(!expanded))
+    assessmentCategories.hidden = expanded
+    document.querySelector('#sidebar')?.classList.toggle('categories-open', !expanded)
+  })
+
+  const departmentAliases = {
+    '제지생산1팀': ['제지생산1팀', '제지 1팀'],
+    '제지생산2팀 제지카타': ['제지생산2팀', '제지 2팀', '제지카타'],
+    '제지생산2팀 포장': ['제지생산2팀', '제지 2팀', '포장'],
+    '제지생산2팀 원지 포장': ['제지생산2팀', '제지 2팀', '원지 포장'],
+    '제지품질보증팀': ['제지품질보증팀'],
+    '화장지생산팀 초지': ['화장지생산팀', '초지'],
+    '화장지생산팀 가공': ['화장지생산팀', '가공'],
+    '화장지품질보증팀': ['화장지품질보증팀'],
+    '패드생산팀': ['패드생산팀'],
+    '패드품질보증팀': ['패드품질보증팀'],
+    '공무팀': ['공무팀'],
+    '전기팀': ['전기팀'],
+    '구매팀': ['구매팀'],
+    '물류팀 AGV파트': ['물류팀', 'AGV파트'],
+    '환경에너지 에너지': ['환경에너지', '에너지'],
+  }
+  document.querySelectorAll('.department-link').forEach(link => {
+    link.addEventListener('click', () => {
+      const department = link.dataset.department
+      const aliases = departmentAliases[department] || [department]
+      let visibleCount = 0
+      document.querySelectorAll('#assessment-table-body tr').forEach(row => {
+        const searchText = (row.dataset.search || '').toLocaleLowerCase()
+        const visible = aliases.some(alias => searchText.includes(alias.toLocaleLowerCase()))
+        row.hidden = !visible
+        if (visible) visibleCount += 1
+      })
+      document.querySelectorAll('.department-link').forEach(item => item.classList.toggle('selected', item === link))
+      document.querySelector('.page-heading h1').textContent = `${link.textContent.trim()} 위험성평가`
+      document.querySelector('.breadcrumb strong').textContent = '위험성평가'
+      document.querySelectorAll('.filter-tab').forEach(tab => tab.classList.remove('selected'))
+      document.querySelector('.filter-tab[data-filter="all"]')?.classList.add('selected')
+      if (window.innerWidth <= 660) document.querySelector('#sidebar')?.classList.remove('mobile-open')
+      toast(visibleCount ? `${link.textContent.trim()} 평가 목록을 표시했습니다.` : `${link.textContent.trim()}에 등록된 평가가 없습니다.`)
+    })
+  })
+  document.querySelector('[data-dashboard-link]')?.addEventListener('click', () => {
+    document.querySelectorAll('#assessment-table-body tr').forEach(row => { row.hidden = false })
+    document.querySelectorAll('.department-link').forEach(item => item.classList.remove('selected'))
+    document.querySelector('.page-heading h1').textContent = '위험성평가 현황'
+    document.querySelector('.breadcrumb strong').textContent = '대시보드'
+  })
+
   document.querySelector('#mobile-menu-button')?.addEventListener('click', () => {
     document.querySelector('#sidebar')?.classList.toggle('mobile-open')
   })
   document.querySelectorAll('.nav-item').forEach(link => {
     link.addEventListener('click', () => {
-      if (window.innerWidth <= 660) document.querySelector('#sidebar')?.classList.remove('mobile-open')
+      if (window.innerWidth <= 660 && link.id !== 'assessment-nav-toggle') {
+        document.querySelector('#sidebar')?.classList.remove('mobile-open')
+      }
     })
   })
 })()
