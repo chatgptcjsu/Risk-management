@@ -103,6 +103,8 @@
   }
 
   const isAdmin = () => authState.user?.role === 'ADMIN'
+  const defaultDashboardTitle = '유해위험요인'
+  let dashboardTitle = defaultDashboardTitle
   let activeFolderScope = null
 
   const updateAccessUi = () => {
@@ -141,6 +143,7 @@
     document.querySelector('#dashboard-sections').hidden = true
     document.querySelector('#team-folder-view').hidden = false
     document.querySelector('#page-title').textContent = title
+    document.querySelector('#edit-dashboard-title-button').hidden = true
     document.querySelector('#page-subtitle').textContent = `${scope.team}${scope.process ? ` · ${scope.process}` : ''} 분류에 보관된 파일과 업로드 내역입니다.`
     document.querySelector('#folder-category-label').textContent = title
     document.querySelector('#folder-title').textContent = scope.process ? `${scope.team} · ${scope.process}` : scope.team
@@ -157,6 +160,88 @@
       ? '정기 위험성평가의 유해위험요인 엑셀 파일을 업로드하세요.'
       : '개선 필요 건 PPT 파일을 업로드하세요.'
     await loadFolderFiles()
+  }
+
+  const renderSpreadsheetSheet = (sheet, sheetName, viewport) => {
+    const sourceRange = window.XLSX.utils.decode_range(sheet['!ref'] || 'A1')
+    const rowCount = sourceRange.e.r - sourceRange.s.r + 1
+    const totalColumns = sourceRange.e.c - sourceRange.s.c + 1
+    const range = {
+      s: sourceRange.s,
+      e: {
+        r: Math.min(sourceRange.e.r, sourceRange.s.r + 149),
+        c: Math.min(sourceRange.e.c, sourceRange.s.c + 39),
+      },
+    }
+    const visibleRows = window.XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: false, blankrows: true, range })
+    const shownColumns = Math.min(40, totalColumns)
+    const table = document.createElement('table')
+    table.className = 'xlsx-preview-table'
+    table.setAttribute('aria-label', `${sheetName} 시트 미리보기`)
+    const body = document.createElement('tbody')
+    visibleRows.forEach((rowValues, rowIndex) => {
+      const row = document.createElement('tr')
+      if (rowIndex === 0) row.className = 'xlsx-preview-first-row'
+      for (let columnIndex = 0; columnIndex < columnCount; columnIndex += 1) {
+        const cell = document.createElement('td')
+        const value = rowValues[columnIndex]
+        cell.textContent = value == null ? '' : String(value)
+        row.append(cell)
+      }
+      body.append(row)
+    })
+    table.append(body)
+    viewport.replaceChildren(table)
+    return { rowCount, shownRows: visibleRows.length, shownColumns, totalColumns }
+  }
+
+  const openSpreadsheetPreview = async (file) => {
+    const content = document.createElement('div')
+    content.className = 'xlsx-preview-content'
+    const status = document.createElement('p')
+    status.className = 'xlsx-preview-status'
+    status.textContent = '엑셀 파일을 브라우저에서 여는 중입니다…'
+    const tabs = document.createElement('div')
+    tabs.className = 'xlsx-preview-tabs'
+    tabs.setAttribute('role', 'tablist')
+    const viewport = document.createElement('div')
+    viewport.className = 'xlsx-preview-table-scroll'
+    const fallback = document.createElement('a')
+    fallback.className = 'button button-secondary xlsx-preview-download'
+    fallback.href = `/api/files/${file.id}/download`
+    fallback.textContent = '원본 다운로드'
+    fallback.hidden = true
+    content.append(status, tabs, viewport, fallback)
+    showModal(file.originalName, '엑셀 내용을 브라우저에서 미리 봅니다. 파일은 기기에 저장되지 않습니다.', content, '닫기', closeModal)
+    document.querySelector('.modal-card')?.classList.add('xlsx-preview-modal')
+
+    try {
+      if (!window.XLSX) throw new Error('엑셀 미리보기 도구를 불러오지 못했습니다.')
+      if (file.fileSize > 20 * 1024 * 1024) throw new Error('20MB를 초과하는 파일은 미리보기 대신 원본을 다운로드해 주세요.')
+      const response = await fetch(`/api/files/${file.id}/download`, { credentials: 'same-origin' })
+      if (!response.ok) throw new Error('파일을 불러오지 못했습니다.')
+      const workbook = window.XLSX.read(await response.arrayBuffer(), { type: 'array', cellDates: true })
+      if (!workbook.SheetNames.length) throw new Error('파일에 표시할 시트가 없습니다.')
+      const renderTab = (activeName) => {
+        tabs.replaceChildren()
+        workbook.SheetNames.forEach((sheetName) => {
+          const tab = document.createElement('button')
+          tab.type = 'button'
+          tab.className = `xlsx-preview-tab${sheetName === activeName ? ' selected' : ''}`
+          tab.setAttribute('role', 'tab')
+          tab.setAttribute('aria-selected', String(sheetName === activeName))
+          tab.textContent = sheetName
+          tab.addEventListener('click', () => renderTab(sheetName))
+          tabs.append(tab)
+        })
+        const result = renderSpreadsheetSheet(workbook.Sheets[activeName], activeName, viewport)
+        status.textContent = `${result.rowCount}행 · ${result.totalColumns}열${result.rowCount > result.shownRows ? ` · 처음 ${result.shownRows}행 표시` : ''}${result.totalColumns > result.shownColumns ? ` · 처음 ${result.shownColumns}열 표시` : ''}`
+      }
+      renderTab(workbook.SheetNames[0])
+    } catch (error) {
+      status.textContent = `${error.message || '미리보기를 표시하지 못했습니다.'} 원본 파일은 아래에서 다운로드할 수 있습니다.`
+      fallback.hidden = false
+    }
   }
 
   const loadFolderFiles = async () => {
@@ -191,15 +276,23 @@
         const row = document.createElement('tr')
         const nameCell = row.insertCell()
         const link = document.createElement('a')
-        link.className = 'folder-download-link'
-        link.href = `/api/files/${file.id}/download`
+        const extension = file.originalName.split('.').pop().toLowerCase()
+        const isSpreadsheet = activeFolderScope.category === 'HAZARD_RISK' && ['xls', 'xlsx'].includes(extension)
+        link.className = isSpreadsheet ? 'folder-preview-link' : 'folder-download-link'
+        link.href = isSpreadsheet ? '#' : `/api/files/${file.id}/download`
         link.textContent = file.originalName
+        if (isSpreadsheet) link.addEventListener('click', (event) => { event.preventDefault(); openSpreadsheetPreview(file) })
         nameCell.append(link)
         row.insertCell().textContent = file.originalName.split('.').pop().toUpperCase()
         row.insertCell().textContent = `${Math.max(1, Math.ceil(file.fileSize / 1024))} KB`
         row.insertCell().textContent = file.uploadedBy
         row.insertCell().textContent = formatDateTime(file.uploadedAt)
         const actionCell = row.insertCell()
+        const downloadLink = document.createElement('a')
+        downloadLink.className = 'completed-details-button file-download-button'
+        downloadLink.href = `/api/files/${file.id}/download`
+        downloadLink.textContent = '다운로드'
+        actionCell.append(downloadLink)
         if (isAdmin()) {
           const deleteButton = document.createElement('button')
           deleteButton.type = 'button'
@@ -214,8 +307,6 @@
             } catch (error) { showRequestError(error) }
           })
           actionCell.append(deleteButton)
-        } else {
-          actionCell.textContent = '—'
         }
         tbody.append(row)
       })
@@ -392,6 +483,12 @@
     } catch {
       authState.user = null
     }
+    try {
+      const setting = await apiRequest('/api/settings/dashboard-title')
+      dashboardTitle = setting.title || defaultDashboardTitle
+      document.querySelector('#page-title').textContent = dashboardTitle
+      document.title = `안전온 | ${dashboardTitle}`
+    } catch { /* Keep the default label if settings cannot be loaded. */ }
     updateAccessUi()
     try {
       await loadHighRiskItems()
@@ -441,6 +538,28 @@
         if (activeFolderScope) await loadFolderFiles()
         if (!document.querySelector('#completed-list-content')?.hidden) await loadCompletedItems()
         toast(`${user.displayName}님, 로그인했습니다.`)
+      } catch (error) { showRequestError(error) }
+    })
+  })
+
+  document.querySelector('#edit-dashboard-title-button')?.addEventListener('click', () => {
+    const input = document.createElement('input')
+    input.type = 'text'
+    input.maxLength = 120
+    input.value = dashboardTitle
+    input.autocomplete = 'off'
+    const content = document.createElement('div')
+    content.append(field('대시보드 제목', input, '변경 내용은 모든 사용자의 대시보드에 저장됩니다.'))
+    showModal('대시보드 제목 편집', '메인 화면의 제목 레이블을 변경합니다.', content, '저장', async () => {
+      const title = input.value.trim()
+      if (!title) { toast('제목을 입력해 주세요.'); return }
+      try {
+        const updated = await apiRequest('/api/settings/dashboard-title', { method: 'PUT', body: JSON.stringify({ title }) })
+        dashboardTitle = updated.title
+        document.querySelector('#page-title').textContent = dashboardTitle
+        document.title = `안전온 | ${dashboardTitle}`
+        closeModal()
+        toast('대시보드 제목을 저장했습니다.')
       } catch (error) { showRequestError(error) }
     })
   })
@@ -788,7 +907,8 @@
   document.querySelector('#folder-back-button')?.addEventListener('click', () => {
     document.querySelector('#team-folder-view').hidden = true
     document.querySelector('#dashboard-sections').hidden = false
-    document.querySelector('#page-title').textContent = '유해위험요인'
+    document.querySelector('#page-title').textContent = dashboardTitle
+    document.querySelector('#edit-dashboard-title-button').hidden = false
     document.querySelector('#page-subtitle').textContent = '작업현장의 유해·위험요인과 개선 진행 상황을 확인하세요.'
     document.querySelector('#breadcrumb-selection').textContent = '유해위험요인'
     activeFolderScope = null

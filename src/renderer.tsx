@@ -11,6 +11,7 @@ export const renderer = jsxRenderer(({ children }) => {
         <meta name="description" content="현장의 위험을 먼저 발견하고 함께 개선하는 위험성평가 플랫폼" />
         <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
         <link href="/static/style.css" rel="stylesheet" />
+        <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js" defer></script>
         <script src="/static/app.js" defer></script>
       </head>
       <body>{children}</body>

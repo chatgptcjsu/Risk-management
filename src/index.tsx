@@ -24,6 +24,7 @@ const iconPaths: Record<string, string> = {
   image: 'M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zM8.5 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM22 15l-5-5L5 20',
   spark: 'm12 3 1.9 5.8L20 11l-6.1 2.2L12 19l-1.9-5.8L4 11l6.1-2.2L12 3zM19 14l1.1 2.9L23 18l-2.9 1.1L19 22l-1.1-2.9L15 18l2.9-1.1L19 14z',
   x: 'M18 6 6 18M6 6l12 12',
+  edit: 'm16 4 4 4M4 20l4.5-1 11-11a2.12 2.12 0 0 0-3-3l-11 11L4 20z',
   more: 'M5 12h.01M12 12h.01M19 12h.01',
 }
 
@@ -241,7 +242,7 @@ app.get('/', (c) => {
           <section class="page-heading">
             <div>
               <div class="eyebrow"><span class="eyebrow-line"></span> SAFETY OVERVIEW <span class="eyebrow-year">2026</span></div>
-              <h1 id="page-title">유해위험요인</h1>
+              <div class="page-title-row"><h1 id="page-title">유해위험요인</h1><button class="title-edit-button" id="edit-dashboard-title-button" type="button" aria-label="대시보드 제목 편집" title="대시보드 제목 편집"><Icon name="edit" /></button></div>
               <p id="page-subtitle">작업현장의 유해·위험요인과 개선 진행 상황을 확인하세요.</p>
             </div>
             <div class="heading-actions">
