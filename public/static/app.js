@@ -117,6 +117,8 @@
       completionDate: '',
       owner: '',
       notes: '',
+      actionStatus: '',
+      actionStatusManual: false,
       ppt: null,
     })
 
@@ -169,6 +171,16 @@
           control.addEventListener('change', () => {
             row[key] = control.value
             row.currentRisk = excelRiskScore(row)
+            if (row.currentRisk && (!row.actionStatusManual || (Number(row.currentRisk) >= 8 && row.actionStatus === '관리 대상 아님'))) {
+              row.actionStatusManual = false
+              row.actionStatus = Number(row.currentRisk) >= 8 ? '공사 필요' : '관리 대상 아님'
+              const actionSelect = tr.querySelector('.excel-action-status')
+              if (actionSelect) {
+                actionSelect.value = row.actionStatus
+                actionSelect.classList.toggle('status-construction', row.actionStatus === '공사 필요')
+                actionSelect.classList.toggle('status-self', row.actionStatus === '자체개선 완료')
+              }
+            }
             const score = tr.querySelector('.excel-risk-score')
             score.textContent = row.currentRisk || '—'
             score.classList.toggle('high-risk-score', Number(row.currentRisk) >= 8)
@@ -189,6 +201,27 @@
         score.classList.toggle('high-risk-score', Number(row.currentRisk) >= 8)
         column(score, 'excel-risk-result')
         tr.classList.toggle('excel-high-risk-row', Number(row.currentRisk) >= 8)
+        const actionStatus = document.createElement('select')
+        actionStatus.className = 'excel-action-status'
+        actionStatus.setAttribute('aria-label', '개선조치 구분')
+        actionStatus.innerHTML = '<option value="">자동 분류</option><option value="공사 필요">공사 필요</option><option value="자체개선 완료">자체개선 완료</option><option value="관리 대상 아님">관리 대상 아님</option>'
+        actionStatus.value = row.actionStatus || ''
+        actionStatus.classList.toggle('status-construction', row.actionStatus === '공사 필요')
+        actionStatus.classList.toggle('status-self', row.actionStatus === '자체개선 완료')
+        actionStatus.addEventListener('change', () => {
+          if (Number(row.currentRisk) >= 8 && actionStatus.value === '관리 대상 아님') {
+            actionStatus.value = '공사 필요'
+            row.actionStatus = '공사 필요'
+            row.actionStatusManual = false
+            toast('위험도 8점 이상 항목은 개선조치 관리 대상입니다.')
+          } else {
+            row.actionStatus = actionStatus.value
+            row.actionStatusManual = Boolean(actionStatus.value)
+          }
+          actionStatus.classList.toggle('status-construction', actionStatus.value === '공사 필요')
+          actionStatus.classList.toggle('status-self', actionStatus.value === '자체개선 완료')
+        })
+        column(actionStatus, 'excel-action-status-cell')
         column(textInput('countermeasure', '감소 대책 (위험도 8 이상 필수)', 'textarea'))
         const afterEstimate = document.createElement('input')
         afterEstimate.type = 'number'
@@ -253,7 +286,7 @@
           <table class="excel-entry-table">
             <thead><tr>
               <th>번호</th><th>작업내용</th><th>유해 위험요인</th><th>현재상태 및 조치</th>
-              <th>가능성<br />(빈도)</th><th>중대성<br />(강도)</th><th>현재 위험성</th>
+              <th>가능성<br />(빈도)</th><th>중대성<br />(강도)</th><th>현재 위험성</th><th>개선조치 구분</th>
               <th>감소 대책<br />(위험도 8 이상)</th><th>개선 후 위험성<br />(추정)</th><th>개선일</th><th>완료일</th><th>담당자</th><th>비고</th><th></th>
             </tr></thead><tbody class="excel-entry-body"></tbody>
           </table>
@@ -290,6 +323,94 @@
       riskCount.classList.toggle('risk-high', highCount > 0)
       tbody.prepend(tableRow)
       document.querySelector('#total-count').textContent = String(Number(document.querySelector('#total-count').textContent) + 1)
+    }
+
+    const getManagementRows = () => savedAssessments.flatMap(record => record.rows
+      .filter(row => Number(row.currentRisk) >= 8 || row.actionStatus === '공사 필요' || row.actionStatus === '자체개선 완료')
+      .map(row => ({ record, row })))
+
+    const updateActionCounts = () => {
+      const items = getManagementRows()
+      document.querySelector('#action-total-count').textContent = String(items.length)
+      document.querySelector('#action-construction-count').textContent = String(items.filter(({ row }) => row.actionStatus === '공사 필요').length)
+      document.querySelector('#action-self-count').textContent = String(items.filter(({ row }) => row.actionStatus === '자체개선 완료').length)
+    }
+
+    const applyActionFilters = () => {
+      const query = document.querySelector('#action-search')?.value.trim().toLocaleLowerCase() || ''
+      const activeFilter = document.querySelector('.management-filter.selected')?.dataset.actionFilter || 'all'
+      const tableRows = Array.from(document.querySelectorAll('#management-items-body tr[data-status]'))
+      let shown = 0
+      tableRows.forEach(tableRow => {
+        const matchesStatus = activeFilter === 'all' || tableRow.dataset.status === activeFilter
+        const matchesQuery = !query || tableRow.dataset.search.toLocaleLowerCase().includes(query)
+        tableRow.hidden = !(matchesStatus && matchesQuery)
+        if (!tableRow.hidden) shown += 1
+      })
+      const empty = document.querySelector('#management-empty-row')
+      if (empty) {
+        empty.hidden = shown > 0
+        empty.querySelector('td').textContent = tableRows.length === 0
+          ? '위험성평가를 저장하면 개선조치 항목이 여기에 표시됩니다.'
+          : '검색 또는 상태 조건에 맞는 개선조치가 없습니다.'
+      }
+    }
+
+    const renderManagementRows = () => {
+      const body = document.querySelector('#management-items-body')
+      if (!body) return
+      body.replaceChildren()
+      const items = getManagementRows()
+      items.forEach(({ record, row }, index) => {
+        if (!row.actionStatus) row.actionStatus = Number(row.currentRisk) >= 8 ? '공사 필요' : '관리 대상 아님'
+        const tr = document.createElement('tr')
+        tr.dataset.status = row.actionStatus
+        tr.dataset.search = `${record.team} ${record.process} ${row.work} ${row.hazard} ${row.countermeasure} ${row.owner} ${row.notes}`
+        const addCell = (value, className = '') => {
+          const td = document.createElement('td')
+          if (className) td.className = className
+          td.textContent = value || '—'
+          tr.append(td)
+          return td
+        }
+        addCell(String(index + 1), 'management-row-number')
+        addCell(`${record.team} · ${record.process}`)
+        addCell(`${row.work} · ${row.hazard}`)
+        const risk = addCell(`${row.currentRisk}점`, Number(row.currentRisk) >= 8 ? 'management-risk-high' : 'management-risk-normal')
+        const statusCell = document.createElement('td')
+        const statusSelect = document.createElement('select')
+        statusSelect.className = `action-status-select ${row.actionStatus === '공사 필요' ? 'status-construction' : 'status-self'}`
+        statusSelect.setAttribute('aria-label', '개선조치 구분')
+        statusSelect.innerHTML = '<option value="공사 필요">공사 필요</option><option value="자체개선 완료">자체개선 완료</option>'
+        statusSelect.value = row.actionStatus
+        statusSelect.addEventListener('change', () => {
+          row.actionStatus = statusSelect.value
+          tr.dataset.status = row.actionStatus
+          tr.dataset.search = `${record.team} ${record.process} ${row.work} ${row.hazard} ${row.countermeasure} ${row.owner} ${row.notes} ${row.actionStatus}`
+          statusSelect.classList.toggle('status-construction', row.actionStatus === '공사 필요')
+          statusSelect.classList.toggle('status-self', row.actionStatus === '자체개선 완료')
+          updateActionCounts()
+          applyActionFilters()
+        })
+        statusCell.append(statusSelect)
+        tr.append(statusCell)
+        addCell(row.owner)
+        addCell(row.improvementDate || row.ppt?.improvementDate || '')
+        addCell(row.notes || row.ppt?.notes || '')
+        tr.dataset.search = `${tr.dataset.search} ${row.actionStatus}`
+        body.append(tr)
+      })
+      const emptyRow = document.createElement('tr')
+      emptyRow.id = 'management-empty-row'
+      emptyRow.className = 'management-empty-row'
+      emptyRow.hidden = items.length > 0
+      const emptyCell = document.createElement('td')
+      emptyCell.colSpan = 8
+      emptyCell.textContent = items.length ? '검색 또는 상태 조건에 맞는 개선조치가 없습니다.' : '위험성평가를 저장하면 개선조치 항목이 여기에 표시됩니다.'
+      emptyRow.append(emptyCell)
+      body.append(emptyRow)
+      updateActionCounts()
+      applyActionFilters()
     }
 
     const renderHighRiskQueue = () => {
@@ -688,8 +809,12 @@
           reason: reason.value,
           rows: excelRows,
         }
+        currentRecord.rows.forEach(row => {
+          if (!row.actionStatus) row.actionStatus = Number(row.currentRisk) >= 8 ? '공사 필요' : '관리 대상 아님'
+        })
         savedAssessments.push(currentRecord)
         appendAssessmentRow(currentRecord)
+        renderManagementRows()
         phase = 'queue'
         setModalPhase(backdrop, {
           title: '위험도 8점 이상 · PPT 추가 작성',
@@ -805,8 +930,34 @@
 
   document.querySelector('#export-button')?.addEventListener('click', () => toast('연도별 엑셀 내보내기는 데이터 기능 연동 후 제공됩니다.'))
   document.querySelector('#status-filter')?.addEventListener('click', () => toast('상태별 필터는 다음 기능 구현 단계에서 연결됩니다.'))
-  document.querySelector('#open-actions')?.addEventListener('click', () => toast('개선조치 관리 목록으로 이동합니다. (샘플 화면)'))
   document.querySelector('#review-all')?.addEventListener('click', () => toast('승인 대기함은 권한·워크플로 연동 후 사용할 수 있습니다.'))
+  document.querySelector('#open-actions')?.addEventListener('click', () => document.querySelector('#action-management')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+  const applyActionManagementFilters = () => {
+    const query = document.querySelector('#action-search')?.value.trim().toLocaleLowerCase() || ''
+    const filter = document.querySelector('.management-filter.selected')?.dataset.actionFilter || 'all'
+    const rows = Array.from(document.querySelectorAll('#management-items-body tr[data-status]'))
+    let visibleCount = 0
+    rows.forEach(row => {
+      const visible = (filter === 'all' || row.dataset.status === filter) && (!query || row.dataset.search.toLocaleLowerCase().includes(query))
+      row.hidden = !visible
+      if (visible) visibleCount += 1
+    })
+    const empty = document.querySelector('#management-empty-row')
+    if (empty) {
+      empty.hidden = visibleCount > 0
+      empty.querySelector('td').textContent = rows.length === 0
+        ? '위험도 8점 이상 또는 자체개선 완료로 분류된 항목이 여기에 표시됩니다.'
+        : '검색 또는 상태 조건에 맞는 개선조치가 없습니다.'
+    }
+  }
+  document.querySelector('#action-search')?.addEventListener('input', applyActionManagementFilters)
+  document.querySelectorAll('.management-filter').forEach(button => {
+    button.addEventListener('click', () => {
+      document.querySelectorAll('.management-filter').forEach(filter => filter.classList.remove('selected'))
+      button.classList.add('selected')
+      applyActionManagementFilters()
+    })
+  })
   document.querySelectorAll('.row-menu, .risk-arrow, .small-more').forEach(button => {
     button.addEventListener('click', () => toast('상세 화면은 다음 단계에서 연결됩니다.'))
   })

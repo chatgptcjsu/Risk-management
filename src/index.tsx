@@ -71,7 +71,7 @@ app.get('/', (c) => {
             <details class="nav-department-group"><summary class="nav-subitem department-link" data-department="물류팀">물류팀</summary><div class="nav-leaves"><a class="nav-subitem nav-leaf department-link" href="#assessments" data-department="물류팀 AGV파트">AGV파트</a></div></details>
             <details class="nav-department-group"><summary class="nav-subitem department-link" data-department="환경에너지">환경에너지</summary><div class="nav-leaves"><a class="nav-subitem nav-leaf department-link" href="#assessments" data-department="환경에너지 에너지">에너지</a></div></details>
           </div>
-          <a class="nav-item" href="#high-risks"><Icon name="alert" /><span>개선조치 관리</span><span class="nav-dot"></span></a>
+          <a class="nav-item" href="#action-management"><Icon name="alert" /><span>개선조치 관리</span><span class="nav-dot"></span></a>
           <a class="nav-item" href="#documents"><Icon name="file" /><span>문서 보관함</span></a>
         </nav>
 
@@ -253,6 +253,31 @@ app.get('/', (c) => {
                 <span class="ai-disclaimer">AI 제안은 현장 확인 후 승인해 주세요.</span>
               </section>
             </aside>
+          </section>
+
+          <section class="panel management-panel" id="action-management" aria-label="개선조치 관리">
+            <div class="panel-heading management-heading">
+              <div><div class="panel-title-row"><h2>개선조치 관리</h2><span class="management-live-label">평가 연동</span></div><p>위험도 8점 이상 항목과 자체개선 완료 항목을 함께 관리합니다.</p></div>
+            </div>
+            <div class="management-counts">
+              <article class="management-count-card count-total"><span>전체 관리 항목</span><strong id="action-total-count">0</strong><small>건</small></article>
+              <article class="management-count-card count-construction"><span>공사 필요</span><strong id="action-construction-count">0</strong><small>건</small></article>
+              <article class="management-count-card count-self"><span>자체개선 완료</span><strong id="action-self-count">0</strong><small>건</small></article>
+            </div>
+            <div class="management-toolbar">
+              <label class="management-search"><Icon name="search" /><input type="search" id="action-search" placeholder="부서, 공정, 위험요인, 담당자 검색" aria-label="개선조치 검색" /></label>
+              <div class="management-filters" role="group" aria-label="개선조치 상태 필터">
+                <button type="button" class="management-filter selected" data-action-filter="all">전체</button>
+                <button type="button" class="management-filter" data-action-filter="공사 필요">공사 필요</button>
+                <button type="button" class="management-filter" data-action-filter="자체개선 완료">자체개선 완료</button>
+              </div>
+            </div>
+            <div class="management-table-wrap">
+              <table class="management-table">
+                <thead><tr><th>번호</th><th>부서 / 공정</th><th>위험요인 / 작업내용</th><th>현재 위험도</th><th>조치 구분</th><th>담당자</th><th>개선 예정일</th><th>비고</th></tr></thead>
+                <tbody id="management-items-body"><tr id="management-empty-row" class="management-empty-row"><td colspan="8">위험도 8점 이상 또는 자체개선 완료로 분류된 항목이 여기에 표시됩니다.</td></tr></tbody>
+              </table>
+            </div>
           </section>
 
           <footer class="page-footer"><span>© 2026 안전온 · 위험성평가 플랫폼</span><span><a href="#help">도움말</a><i></i><a href="#privacy">개인정보 처리방침</a><i></i><span>안전보건팀</span></span></footer>

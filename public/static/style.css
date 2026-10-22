@@ -326,6 +326,46 @@ h1, h2, h3, p { margin-top: 0; }
 .ai-upload-button svg { width: 13px; height: 13px; }
 .ai-upload-button span { margin-left: auto; font-size: 11px; }
 .ai-disclaimer { display: block; margin-top: 8px; color: #92a99f; font-size: 7px; }
+.management-panel { margin-top: 16px; padding: 17px 0 0; scroll-margin-top: 78px; }
+.management-heading { margin-bottom: 13px; }
+.management-live-label { padding: 3px 7px; border-radius: 10px; background: #eef5f6; color: #71858c; font-size: 8px; font-weight: 700; }
+.management-counts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; padding: 0 18px; }
+.management-count-card { display: grid; grid-template-columns: 1fr auto auto; align-items: baseline; gap: 5px; min-height: 66px; padding: 12px; border: 1px solid #e8edef; border-radius: 8px; background: #fbfcfc; }
+.management-count-card > span { color: #657981; font-size: 10px; font-weight: 700; }
+.management-count-card strong { font-size: 22px; line-height: 1; }
+.management-count-card small { color: #93a0a5; font-size: 9px; }
+.count-total strong { color: #3f6674; }
+.count-construction { border-color: #f0d3d2; background: #fff7f6; }
+.count-construction strong { color: #cb454b; }
+.count-self { border-color: #cde8d7; background: #f5fbf6; }
+.count-self strong { color: #32865b; }
+.management-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 13px 18px 10px; }
+.management-search { display: flex; align-items: center; gap: 7px; width: min(360px, 100%); min-height: 35px; padding: 0 9px; border: 1px solid #e5ebed; border-radius: 6px; background: #fff; color: #8a9aa1; }
+.management-search svg { width: 15px; height: 15px; }
+.management-search input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: #354b55; font-size: 10px; }
+.management-filters { display: flex; flex-wrap: wrap; gap: 5px; }
+.management-filter { min-height: 30px; padding: 0 9px; border: 1px solid #e5ebed; border-radius: 6px; background: #fff; color: #73838a; font-size: 9px; font-weight: 700; }
+.management-filter.selected { border-color: #b8dcd1; background: #edf8f4; color: #21836e; }
+.management-table-wrap { width: 100%; overflow-x: auto; border-top: 1px solid #edf1f2; }
+.management-table { width: 100%; min-width: 900px; border-collapse: collapse; text-align: left; }
+.management-table th { height: 34px; padding: 0 9px; background: #fbfcfc; color: #87969c; font-size: 9px; font-weight: 700; white-space: nowrap; }
+.management-table td { min-height: 45px; padding: 8px 9px; border-top: 1px solid #eff2f3; color: #53666f; font-size: 9px; line-height: 1.45; vertical-align: middle; }
+.management-table td:nth-child(3) { min-width: 220px; }
+.management-row-number { width: 40px; color: #a3afb3 !important; text-align: center; }
+.management-risk-high { color: #c7464d !important; font-weight: 800; }
+.management-risk-normal { color: #607f70 !important; font-weight: 700; }
+.action-status-select { min-width: 112px; padding: 6px 8px; border: 1px solid transparent; border-radius: 16px; font: inherit; font-size: 9px; font-weight: 800; cursor: pointer; }
+.action-status-select.status-construction { border-color: #f0c7c4; background: #fff0ee; color: #bf3c43; }
+.action-status-select.status-self { border-color: #c6e6d1; background: #eaf7ef; color: #2d8055; }
+.management-empty-row td { padding: 25px 12px; color: #99a6ab; text-align: center; }
+@media (max-width: 660px) {
+  .management-counts { grid-template-columns: 1fr; gap: 7px; padding: 0 12px; }
+  .management-count-card { min-height: 54px; }
+  .management-toolbar { align-items: stretch; flex-direction: column; margin-right: 12px; margin-left: 12px; }
+  .management-search { width: 100%; }
+  .management-heading { padding-right: 12px; padding-left: 12px; }
+}
+
 .page-footer { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: 20px 2px 5px; color: #a2adb2; font-size: 8px; }
 .page-footer > span:last-child { display: flex; align-items: center; gap: 9px; }
 .page-footer a:hover { color: #418e7c; }
@@ -552,14 +592,19 @@ h1, h2, h3, p { margin-top: 0; }
 .excel-entry-table tbody th { width: 38px; background: #f7f9fa; color: #778890; font-size: 10px; text-align: center; }
 .excel-entry-table td { min-width: 100px; }
 .excel-entry-table td:nth-child(2) { min-width: 115px; }
-.excel-entry-table td:nth-child(3), .excel-entry-table td:nth-child(4), .excel-entry-table td:nth-child(8) { min-width: 190px; }
+.excel-entry-table td:nth-child(3), .excel-entry-table td:nth-child(4), .excel-entry-table td:nth-child(9) { min-width: 190px; }
 .excel-entry-table td:nth-child(5), .excel-entry-table td:nth-child(6) { min-width: 70px; }
 .excel-entry-table td:nth-child(7) { min-width: 75px; text-align: center; }
-.excel-entry-table td:nth-child(9), .excel-entry-table td:nth-child(10), .excel-entry-table td:nth-child(11) { min-width: 110px; }
-.excel-entry-table td:nth-child(12), .excel-entry-table td:nth-child(13) { min-width: 100px; }
+.excel-entry-table td:nth-child(8) { min-width: 140px; }
+.excel-entry-table td:nth-child(10) { min-width: 90px; }
+.excel-entry-table td:nth-child(11), .excel-entry-table td:nth-child(12) { min-width: 110px; }
+.excel-entry-table td:nth-child(13), .excel-entry-table td:nth-child(14) { min-width: 100px; }
 .excel-entry-table input, .excel-entry-table select, .excel-entry-table textarea { width: 100%; min-height: 31px; padding: 5px 6px; border: 1px solid #dce4e7; border-radius: 4px; background: #fff; color: #334852; font-size: 9px; }
 .excel-entry-table textarea { min-height: 48px; resize: vertical; }
 .excel-entry-table .excel-team-only-input { background: #f0f2f3; color: #89979d; cursor: not-allowed; }
+.excel-entry-table .excel-action-status { min-width: 112px; font-weight: 700; }
+.excel-entry-table .excel-action-status.status-construction { border-color: #f0c7c4; background: #fff0ee; color: #bf3c43; }
+.excel-entry-table .excel-action-status.status-self { border-color: #c6e6d1; background: #eaf7ef; color: #2d8055; }
 .excel-entry-table input:focus, .excel-entry-table select:focus, .excel-entry-table textarea:focus { border-color: #54ad98; outline: 0; box-shadow: 0 0 0 2px rgba(47,164,136,.1); }
 .excel-entry-table .excel-score-input { min-width: 68px; }
 .excel-risk-result { text-align: center; }
