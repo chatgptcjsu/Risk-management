@@ -74,7 +74,7 @@ public class ImprovementService {
     @Transactional(readOnly = true)
     public List<StatusChangeDto> getHistory(long id) {
         if (!improvements.existsById(id)) throw new EntityNotFoundException("개선 항목을 찾을 수 없습니다.");
-        return history.findAllByImprovementIdOrderByChangedAtDesc(id).stream()
+        return history.findAllByImprovement_IdOrderByChangedAtDesc(id).stream()
                 .map(change -> new StatusChangeDto(change.getId(), change.getPreviousStatus(),
                         change.getNewStatus(), change.getCompletedDate(), change.getChangedBy(), change.getChangedAt()))
                 .toList();

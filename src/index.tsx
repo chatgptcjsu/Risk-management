@@ -68,48 +68,17 @@ const assessmentFolders = [
   },
 ]
 
-const assessmentYears = [2026, 2025, 2024]
-
-function TeamFileUpload({
-  year,
-  assessmentType,
-  category,
-  team,
-  process,
-  uploadType,
-}: {
-  year: number
-  assessmentType: 'REGULAR' | 'AD_HOC'
-  category: 'HAZARD_RISK' | 'IMPROVEMENT_REQUEST'
-  team: string
-  process: string
-  uploadType: 'xlsx' | 'pptx'
-}) {
-  const accept = uploadType === 'xlsx' ? '.xlsx,.xls' : '.pptx,.ppt'
-  const fileListId = `${year}-${assessmentType}-${category}-${team}-${process || 'team'}`.replace(/[^a-zA-Z0-9-]/g, '-')
-  return (
-    <div class="tree-file-entry">
-      <label class="tree-file-upload" title={uploadType === 'xlsx' ? '유해위험요인 엑셀 업로드' : '개선요청 PPT 업로드'}>
-        <Icon name="plus" />
-        <span>파일 업로드</span>
-        <input type="file" accept={accept} multiple data-file-upload data-file-list-id={fileListId} data-upload-year={year} data-upload-type={assessmentType} data-upload-category={category} data-upload-team={team} data-upload-process={process} />
-      </label>
-      <ul class="tree-document-list" id={`files-${fileListId}`} data-document-list data-upload-year={year} data-upload-type={assessmentType} data-upload-category={category} data-upload-team={team} data-upload-process={process}></ul>
-    </div>
-  )
-}
+const assessmentYears = Array.from({ length: 5 }, (_, index) => new Date().getFullYear() - index)
 
 function TeamTree({
   branchId,
   parentPath,
-  uploadType,
   year,
   assessmentType,
   category,
 }: {
   branchId: string
   parentPath: string
-  uploadType: 'xlsx' | 'pptx'
   year: number
   assessmentType: 'REGULAR' | 'AD_HOC'
   category: 'HAZARD_RISK' | 'IMPROVEMENT_REQUEST'
@@ -129,10 +98,9 @@ function TeamTree({
                 const processPath = `${departmentPath} / ${process}`
                 return (
                   <div class="tree-process-entry" key={`${departmentId}-${process}`}>
-                    <button class="tree-selectable tree-process-leaf" type="button" data-workspace-selection={processPath}>
+                    <button class="tree-selectable tree-process-leaf" type="button" data-workspace-selection={processPath} data-file-year={year} data-file-assessment-type={assessmentType} data-file-category={category} data-file-team={department.name} data-file-process={process}>
                       <span class="tree-process-marker"></span><span>{process}</span>
                     </button>
-                    <TeamFileUpload year={year} assessmentType={assessmentType} category={category} team={department.name} process={process} uploadType={uploadType} />
                   </div>
                 )
               })}
@@ -140,10 +108,9 @@ function TeamTree({
           </div>
         ) : (
           <div class="tree-team-entry" key={departmentId}>
-            <button class="tree-selectable tree-team-leaf" type="button" data-workspace-selection={departmentPath}>
+            <button class="tree-selectable tree-team-leaf" type="button" data-workspace-selection={departmentPath} data-file-year={year} data-file-assessment-type={assessmentType} data-file-category={category} data-file-team={department.name} data-file-process="">
               <span class="tree-team-marker"></span><span>{department.name}</span>
             </button>
-            <TeamFileUpload year={year} assessmentType={assessmentType} category={category} team={department.name} process="" uploadType={uploadType} />
           </div>
         )
       })}
@@ -212,7 +179,6 @@ app.get('/', (c) => {
                                 <TeamTree
                                   branchId={subfolderId}
                                   parentPath={subfolderPath}
-                                  uploadType={subfolder.id === 'hazards' ? 'xlsx' : 'pptx'}
                                   year={year}
                                   assessmentType={folder.id === 'regular' ? 'REGULAR' : 'AD_HOC'}
                                   category={subfolder.id === 'hazards' ? 'HAZARD_RISK' : 'IMPROVEMENT_REQUEST'}
@@ -221,7 +187,7 @@ app.get('/', (c) => {
                             </div>
                           )
                         }) : (
-                          <TeamTree branchId={categoryId} parentPath={`${year}년 / ${folder.name}`} />
+                          <TeamTree branchId={categoryId} parentPath={`${year}년 / ${folder.name}`} year={year} assessmentType={folder.id === 'regular' ? 'REGULAR' : 'AD_HOC'} category="IMPROVEMENT_REQUEST" />
                         )}
                       </div>
                     </div>
@@ -275,8 +241,8 @@ app.get('/', (c) => {
           <section class="page-heading">
             <div>
               <div class="eyebrow"><span class="eyebrow-line"></span> SAFETY OVERVIEW <span class="eyebrow-year">2026</span></div>
-              <h1>위험성평가 현황</h1>
-              <p>현장의 위험을 먼저 발견하고, 함께 개선해 나가세요.</p>
+              <h1 id="page-title">유해위험요인</h1>
+              <p id="page-subtitle">작업현장의 유해·위험요인과 개선 진행 상황을 확인하세요.</p>
             </div>
             <div class="heading-actions">
               <div class="dashboard-size-control" role="group" aria-label="대시보드 크기 조절">
@@ -293,6 +259,7 @@ app.get('/', (c) => {
             </div>
           </section>
 
+          <div id="dashboard-sections">
           <section class="welcome-banner" aria-label="평가 진행 요약">
             <div class="welcome-decoration decoration-one"></div><div class="welcome-decoration decoration-two"></div>
             <div class="welcome-content">
@@ -441,8 +408,33 @@ app.get('/', (c) => {
               </section>
             </aside>
           </section>
+          </div>
 
-          <footer class="page-footer"><span>© 2026 안전온 · 위험성평가 플랫폼</span><span><a href="#help">도움말</a><i></i><a href="#privacy">개인정보 처리방침</a><i></i><span>안전보건팀</span></span></footer>
+          <section class="panel team-folder-page" id="team-folder-view" hidden>
+            <div class="team-folder-toolbar">
+              <button class="button button-secondary" id="folder-back-button" type="button"><Icon name="down" className="back-chevron" /> 대시보드로</button>
+              <button class="button button-primary" id="folder-upload-button" type="button" hidden><Icon name="plus" /> 파일 추가</button>
+              <input id="team-folder-file-input" type="file" multiple hidden />
+            </div>
+            <div class="team-folder-heading">
+              <div class="team-folder-icon"><Icon name="file" /></div>
+              <div><span class="folder-eyebrow" id="folder-category-label">유해위험요인</span><h2 id="folder-title">팀 / 공정</h2><p id="folder-path">연도 · 평가유형 · 팀</p></div>
+            </div>
+            <div class="team-folder-summary"><span id="folder-file-count">파일 목록</span><span>구성원 공용 보관함</span></div>
+            <div class="table-wrap">
+              <table class="folder-files-table">
+                <thead><tr><th>파일명</th><th>유형</th><th>파일 크기</th><th>올린 사람</th><th>업로드 일시</th><th>동작</th></tr></thead>
+                <tbody id="folder-file-list"><tr><td colspan="6" class="table-empty">로그인 후 파일을 확인할 수 있습니다.</td></tr></tbody>
+              </table>
+            </div>
+            <div id="folder-empty-state" class="folder-empty-state" hidden>
+              <span class="folder-empty-icon"><Icon name="file" /></span>
+              <strong>아직 등록된 파일이 없습니다.</strong>
+              <p id="folder-empty-instruction">이 분류에 양식을 추가할 수 있습니다.</p>
+            </div>
+          </section>
+
+          <footer class="page-footer"><span>© 2026 안전온 · 유해위험요인 관리</span><span><a href="#help">도움말</a><i></i><a href="#privacy">개인정보 처리방침</a><i></i><span>안전보건팀</span></span></footer>
         </div>
       </main>
     </div>,

@@ -104,6 +104,7 @@
 
   const isManager = () => ['MANAGER', 'ADMIN'].includes(authState.user?.role)
   const isAdmin = () => authState.user?.role === 'ADMIN'
+  let activeFolderScope = null
 
   const updateAccessUi = () => {
     const loginButton = document.querySelector('#manager-auth-button')
@@ -112,9 +113,12 @@
     if (userAdminButton) userAdminButton.hidden = !isAdmin()
     const addImprovementButton = document.querySelector('#add-improvement-button')
     if (addImprovementButton) addImprovementButton.hidden = !isManager()
-    document.querySelectorAll('[data-file-upload]').forEach((input) => {
-      input.closest('.tree-file-upload').hidden = !isManager()
-    })
+    const folderUploadButton = document.querySelector('#folder-upload-button')
+    const categoryAllowsUpload = activeFolderScope && (
+      activeFolderScope.category === 'IMPROVEMENT_REQUEST' ||
+      (activeFolderScope.category === 'HAZARD_RISK' && activeFolderScope.assessmentType === 'REGULAR')
+    )
+    if (folderUploadButton) folderUploadButton.hidden = !isManager() || !categoryAllowsUpload
     document.querySelectorAll('.improvement-status-select').forEach((select) => {
       select.disabled = !isManager()
     })
@@ -131,10 +135,109 @@
     tbody.append(row)
   }
 
+  const showFolderView = async (scope) => {
+    activeFolderScope = scope
+    const title = scope.category === 'HAZARD_RISK' ? '유해위험요인' : '개선요청 건'
+    const path = [scope.year + '년', scope.assessmentType === 'REGULAR' ? '정기 위험성평가' : '수시 위험성평가', title, scope.team, scope.process].filter(Boolean).join(' / ')
+    document.querySelector('#dashboard-sections').hidden = true
+    document.querySelector('#team-folder-view').hidden = false
+    document.querySelector('#page-title').textContent = title
+    document.querySelector('#page-subtitle').textContent = `${scope.team}${scope.process ? ` · ${scope.process}` : ''} 분류에 보관된 파일과 업로드 내역입니다.`
+    document.querySelector('#folder-category-label').textContent = title
+    document.querySelector('#folder-title').textContent = scope.process ? `${scope.team} · ${scope.process}` : scope.team
+    document.querySelector('#folder-path').textContent = path
+    const uploadButton = document.querySelector('#folder-upload-button')
+    const uploadInput = document.querySelector('#team-folder-file-input')
+    const allowedUpload = scope.category === 'HAZARD_RISK'
+      ? scope.assessmentType === 'REGULAR'
+      : scope.category === 'IMPROVEMENT_REQUEST'
+    uploadButton.hidden = !isManager() || !allowedUpload
+    uploadInput.accept = scope.category === 'HAZARD_RISK' ? '.xlsx,.xls' : '.pptx,.ppt'
+    const instruction = document.querySelector('#folder-empty-instruction')
+    instruction.textContent = scope.category === 'HAZARD_RISK'
+      ? '정기 위험성평가의 유해위험요인 엑셀 파일을 업로드하세요.'
+      : '개선 필요 건 PPT 파일을 업로드하세요.'
+    await loadFolderFiles()
+  }
+
+  const loadFolderFiles = async () => {
+    const tbody = document.querySelector('#folder-file-list')
+    if (!tbody || !activeFolderScope) return
+    if (!authState.user) {
+      setEmptyRow(tbody, 6, '파일을 보려면 로그인해 주세요.')
+      document.querySelector('#folder-empty-state').hidden = false
+      document.querySelector('#folder-file-count').textContent = '로그인 필요'
+      return
+    }
+    try {
+      const query = new URLSearchParams({
+        year: activeFolderScope.year,
+        assessmentType: activeFolderScope.assessmentType,
+        category: activeFolderScope.category,
+        team: activeFolderScope.team,
+        process: activeFolderScope.process || '',
+      })
+      const files = await apiRequest(`/api/files?${query.toString()}`)
+      const selectedType = activeFolderScope.category === 'HAZARD_RISK' ? 'xlsx' : 'pptx'
+      const visibleFiles = files.filter(file => {
+        const ext = file.originalName.split('.').pop().toLowerCase()
+        return selectedType === 'xlsx' ? ['xls', 'xlsx'].includes(ext) : ['ppt', 'pptx'].includes(ext)
+      })
+      document.querySelector('#folder-file-count').textContent = `${visibleFiles.length}개 파일`
+      document.querySelector('#folder-empty-state').hidden = visibleFiles.length > 0
+      if (!visibleFiles.length) {
+        setEmptyRow(tbody, 6, '등록된 파일이 없습니다. 권한이 있는 사용자가 파일을 추가할 수 있습니다.')
+        return
+      }
+      tbody.replaceChildren()
+      visibleFiles.forEach((file) => {
+        const row = document.createElement('tr')
+        const nameCell = row.insertCell()
+        const link = document.createElement('a')
+        link.className = 'folder-download-link'
+        link.href = `/api/files/${file.id}/download`
+        link.textContent = file.originalName
+        nameCell.append(link)
+        row.insertCell().textContent = file.originalName.split('.').pop().toUpperCase()
+        row.insertCell().textContent = `${Math.max(1, Math.ceil(file.fileSize / 1024))} KB`
+        row.insertCell().textContent = file.uploadedBy
+        row.insertCell().textContent = formatDateTime(file.uploadedAt)
+        const actionCell = row.insertCell()
+        if (isAdmin()) {
+          const deleteButton = document.createElement('button')
+          deleteButton.type = 'button'
+          deleteButton.className = 'completed-details-button'
+          deleteButton.textContent = '삭제'
+          deleteButton.addEventListener('click', async () => {
+            if (!window.confirm(`${file.originalName} 파일을 삭제할까요?`)) return
+            try {
+              await apiRequest(`/api/files/${file.id}`, { method: 'DELETE' })
+              await loadFolderFiles()
+              toast('파일을 삭제했습니다.')
+            } catch (error) { showRequestError(error) }
+          })
+          actionCell.append(deleteButton)
+        } else {
+          actionCell.textContent = '—'
+        }
+        tbody.append(row)
+      })
+    } catch (error) {
+      showRequestError(error)
+      setEmptyRow(tbody, 6, '파일 목록을 불러오지 못했습니다. 다시 시도해 주세요.')
+    }
+  }
+
   const formatDate = (value) => {
     if (!value) return '—'
     const date = new Date(`${value.slice(0, 10)}T00:00:00`)
     return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat('ko-KR').format(date)
+  }
+
+  const formatDateTime = (value) => {
+    if (!value) return '—'
+    const date = new Date(value)
+    return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }).format(date)
   }
 
   const showRequestError = (error) => {
@@ -286,51 +389,13 @@
     renderCompletedItems(items)
   }
 
-  const buildFileListQuery = () => '/api/files'
-
-  const renderFileMetadata = (file) => {
-    const selector = `[data-document-list][data-upload-year="${file.year}"][data-upload-type="${file.assessmentType}"][data-upload-category="${file.category}"][data-upload-team="${CSS.escape(file.team)}"][data-upload-process="${CSS.escape(file.process || '')}"]`
-    const list = document.querySelector(selector)
-    if (!list) return
-    const item = document.createElement('li')
-    item.className = 'tree-document-entry'
-    const link = document.createElement('a')
-    link.href = `/api/files/${file.id}/download`
-    link.textContent = file.originalName
-    link.title = `${Math.ceil(file.fileSize / 1024)} KB · ${file.uploadedBy}`
-    item.append(link)
-    if (isAdmin()) {
-      const remove = document.createElement('button')
-      remove.type = 'button'
-      remove.className = 'tree-file-remove'
-      remove.textContent = '×'
-      remove.setAttribute('aria-label', `${file.originalName} 삭제`)
-      remove.addEventListener('click', async () => {
-        if (!window.confirm(`${file.originalName} 파일을 삭제할까요?`)) return
-        try {
-          await apiRequest(`/api/files/${file.id}`, { method: 'DELETE' })
-          item.remove()
-          toast('파일을 삭제했습니다.')
-        } catch (error) { showRequestError(error) }
-      })
-      item.append(remove)
-    }
-    list.append(item)
-  }
-
-  const loadFiles = async () => {
-    const lists = document.querySelectorAll('[data-document-list]')
-    lists.forEach(list => list.replaceChildren())
-    const files = await apiRequest(buildFileListQuery())
-    files.forEach(renderFileMetadata)
-  }
-
   const loadWorkspaceData = async () => {
     try {
       const user = await apiRequest('/api/auth/me')
       authState.user = user
       updateAccessUi()
-      await Promise.all([loadHighRiskItems(), loadFiles()])
+      await loadHighRiskItems()
+      if (activeFolderScope) await loadFolderFiles()
       if (!document.querySelector('#completed-list-content')?.hidden) await loadCompletedItems()
     } catch (error) {
       authState.user = null
@@ -355,6 +420,7 @@
           closeModal()
           updateAccessUi()
           setEmptyRow(document.querySelector('#improvement-table-body'), 6, '로그인 후 개선 필요 건을 확인할 수 있습니다.')
+          if (activeFolderScope) await loadFolderFiles()
           toast('로그아웃했습니다.')
         } catch (error) { showRequestError(error) }
       })
@@ -375,7 +441,9 @@
         authState.user = user
         updateAccessUi()
         closeModal()
-        await Promise.all([loadHighRiskItems(), loadFiles()])
+        await loadHighRiskItems()
+        if (activeFolderScope) await loadFolderFiles()
+        if (!document.querySelector('#completed-list-content')?.hidden) await loadCompletedItems()
         toast(`${user.displayName}님, 로그인했습니다.`)
       } catch (error) { showRequestError(error) }
     })
@@ -670,14 +738,7 @@
   decreaseDashboardButton?.addEventListener('click', () => updateDashboardSize(Number(dashboardScaleInput?.value || 100) - 5))
   increaseDashboardButton?.addEventListener('click', () => updateDashboardSize(Number(dashboardScaleInput?.value || 100) + 5))
 
-  document.querySelectorAll('[data-regular-upload]').forEach((input) => {
-    input.addEventListener('change', () => {
-      const files = Array.from(input.files || [])
-      if (!files.length) return
-      const format = input.dataset.regularUpload === 'xlsx' ? '유해위험요인 엑셀' : '개선요청 PPT'
-      toast(`${input.dataset.uploadPath} · ${format} 파일을 선택했습니다. 저장은 서버 연동 후 활성화됩니다.`)
-    })
-  })
+
 
   document.querySelectorAll('.filter-tab').forEach((button) => {
     button.addEventListener('click', () => {
@@ -712,16 +773,77 @@
     })
   })
 
-  document.querySelectorAll('[data-workspace-selection]').forEach((item) => {
+  document.querySelectorAll('[data-file-year]').forEach((item) => {
     item.addEventListener('click', () => {
-      document.querySelectorAll('[data-workspace-selection]').forEach((entry) => entry.classList.remove('selected'))
+      const scope = {
+        year: Number(item.dataset.fileYear),
+        assessmentType: item.dataset.fileAssessmentType,
+        category: item.dataset.fileCategory,
+        team: item.dataset.fileTeam,
+        process: item.dataset.fileProcess || '',
+      }
+      document.querySelectorAll('[data-workspace-selection]').forEach(entry => entry.classList.remove('selected'))
       item.classList.add('selected')
-      const selection = item.dataset.workspaceSelection
       const breadcrumb = document.querySelector('#breadcrumb-selection')
-      if (breadcrumb) breadcrumb.textContent = selection.split(' / ').slice(-2).join(' / ')
-      toast(`${selection} 분류를 선택했습니다.`)
+      if (breadcrumb) breadcrumb.textContent = item.dataset.workspaceSelection.split(' / ').slice(-2).join(' / ')
+      showFolderView(scope).catch(showRequestError)
       if (window.innerWidth <= 660) document.querySelector('#sidebar')?.classList.remove('mobile-open')
     })
+  })
+
+  document.querySelector('#folder-back-button')?.addEventListener('click', () => {
+    document.querySelector('#team-folder-view').hidden = true
+    document.querySelector('#dashboard-sections').hidden = false
+    document.querySelector('#page-title').textContent = '유해위험요인'
+    document.querySelector('#page-subtitle').textContent = '작업현장의 유해·위험요인과 개선 진행 상황을 확인하세요.'
+    document.querySelector('#breadcrumb-selection').textContent = '유해위험요인'
+    activeFolderScope = null
+  })
+
+  const folderUploadInput = document.querySelector('#team-folder-file-input')
+  document.querySelector('#folder-upload-button')?.addEventListener('click', () => folderUploadInput?.click())
+  folderUploadInput?.addEventListener('change', async () => {
+    const selected = Array.from(folderUploadInput.files || [])
+    if (!selected.length || !activeFolderScope) return
+    if (!isManager()) { toast('파일 업로드는 평가 담당자 권한이 필요합니다.'); return }
+    const form = new FormData()
+    form.append('year', String(activeFolderScope.year))
+    form.append('assessmentType', activeFolderScope.assessmentType)
+    form.append('category', activeFolderScope.category)
+    form.append('team', activeFolderScope.team)
+    form.append('process', activeFolderScope.process || '')
+    selected.forEach(file => form.append('files', file))
+    try {
+      const result = await apiRequest('/api/files', { method: 'POST', body: form })
+      folderUploadInput.value = ''
+      await loadFolderFiles()
+      toast(`${result.files.length}개 파일을 저장했습니다.`)
+    } catch (error) { folderUploadInput.value = ''; showRequestError(error) }
+  })
+
+  document.querySelector('#user-admin-button')?.addEventListener('click', async () => {
+    if (!isAdmin()) return
+    try {
+      const users = await apiRequest('/api/admin/users')
+      const content = document.createElement('div')
+      const username = document.createElement('input'); username.autocomplete = 'off'; username.placeholder = '아이디'
+      const displayName = document.createElement('input'); displayName.placeholder = '표시 이름'
+      const password = document.createElement('input'); password.type = 'password'; password.autocomplete = 'new-password'; password.placeholder = '임시 비밀번호 (12자 이상)'
+      const role = document.createElement('select')
+      role.innerHTML = '<option value="FIELD">현장 조회</option><option value="MANAGER">평가 담당자</option><option value="ADMIN">관리자</option>'
+      const userList = document.createElement('ul'); userList.className = 'admin-user-list'
+      users.forEach(user => { const entry = document.createElement('li'); entry.textContent = `${user.displayName} (${user.username}) · ${user.role}`; userList.append(entry) })
+      const fields = document.createElement('div'); fields.className = 'admin-user-form'
+      fields.append(field('아이디', username), field('이름', displayName), field('임시 비밀번호', password), field('권한', role))
+      const help = document.createElement('p'); help.className = 'admin-user-help'; help.textContent = '현장 조회자는 열람, 평가 담당자는 파일 등록·상태 변경, 관리자는 사용자 및 파일 관리를 할 수 있습니다.'
+      content.append(help, fields, userList)
+      showModal('사용자 관리', '관리자만 계정과 권한을 관리할 수 있습니다.', content, '계정 추가', async () => {
+        try {
+          await apiRequest('/api/admin/users', { method: 'POST', body: JSON.stringify({ username: username.value.trim(), displayName: displayName.value.trim(), password: password.value, role: role.value }) })
+          closeModal(); toast('사용자를 추가했습니다.')
+        } catch (error) { showRequestError(error) }
+      })
+    } catch (error) { showRequestError(error) }
   })
 
   document.querySelector('#export-button')?.addEventListener('click', () => toast('연도별 엑셀 내보내기는 데이터 기능 연동 후 제공됩니다.'))
@@ -740,4 +862,7 @@
       if (window.innerWidth <= 660) document.querySelector('#sidebar')?.classList.remove('mobile-open')
     })
   })
+
+  updateAccessUi()
+  loadWorkspaceData()
 })()
