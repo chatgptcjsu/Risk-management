@@ -166,6 +166,9 @@
     if (!authState.user) {
       setEmptyRow(tbody, 6, '파일을 보려면 로그인해 주세요.')
       document.querySelector('#folder-empty-state').hidden = false
+      document.querySelector('#folder-empty-title').textContent = '로그인이 필요합니다.'
+      document.querySelector('#folder-empty-instruction').textContent = '로그인하면 이 팀·공정에 업로드된 파일을 확인할 수 있습니다.'
+      document.querySelector('#folder-login-button').hidden = false
       document.querySelector('#folder-file-count').textContent = '로그인 필요'
       return
     }
@@ -185,8 +188,13 @@
       })
       document.querySelector('#folder-file-count').textContent = `${visibleFiles.length}개 파일`
       document.querySelector('#folder-empty-state').hidden = visibleFiles.length > 0
+      document.querySelector('#folder-login-button').hidden = true
+      document.querySelector('#folder-empty-title').textContent = '아직 등록된 파일이 없습니다.'
+      document.querySelector('#folder-empty-instruction').textContent = isManager()
+        ? (activeFolderScope.category === 'HAZARD_RISK' ? '엑셀 파일을 업로드할 수 있습니다.' : '개선요청 PPT 파일을 업로드할 수 있습니다.')
+        : '평가 담당자에게 해당 분류의 파일 업로드를 요청하세요.'
       if (!visibleFiles.length) {
-        setEmptyRow(tbody, 6, '등록된 파일이 없습니다. 권한이 있는 사용자가 파일을 추가할 수 있습니다.')
+        setEmptyRow(tbody, 6, '등록된 파일이 없습니다.')
         return
       }
       tbody.replaceChildren()
@@ -392,6 +400,14 @@
   const loadWorkspaceData = async () => {
     try {
       const user = await apiRequest('/api/auth/me')
+      if (!user) {
+        authState.user = null
+        updateAccessUi()
+        setEmptyRow(document.querySelector('#improvement-table-body'), 6, '로그인 후 개선 필요 건을 확인할 수 있습니다.')
+        const total = document.querySelector('#completed-total')
+        if (total) total.textContent = '완료 내역은 로그인 후 확인할 수 있습니다.'
+        return
+      }
       authState.user = user
       updateAccessUi()
       await loadHighRiskItems()
@@ -800,6 +816,8 @@
     activeFolderScope = null
   })
 
+  document.querySelector('#folder-login-button')?.addEventListener('click', () => document.querySelector('#manager-auth-button')?.click())
+  document.querySelector('#folder-login-button')?.addEventListener('click', () => document.querySelector('#manager-auth-button')?.click())
   const folderUploadInput = document.querySelector('#team-folder-file-input')
   document.querySelector('#folder-upload-button')?.addEventListener('click', () => folderUploadInput?.click())
   folderUploadInput?.addEventListener('change', async () => {

@@ -8,6 +8,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -65,8 +66,9 @@ public class AuthController {
     }
 
     @GetMapping("/me")
-    public CurrentUserDto me(Authentication authentication) {
-        return currentUser(authentication.getName());
+    public ResponseEntity<CurrentUserDto> me(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(currentUser(authentication.getName()));
     }
 
     private CurrentUserDto currentUser(String username) {

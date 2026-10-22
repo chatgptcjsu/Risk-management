@@ -429,8 +429,9 @@ app.get('/', (c) => {
             </div>
             <div id="folder-empty-state" class="folder-empty-state" hidden>
               <span class="folder-empty-icon"><Icon name="file" /></span>
-              <strong>아직 등록된 파일이 없습니다.</strong>
+              <strong id="folder-empty-title">아직 등록된 파일이 없습니다.</strong>
               <p id="folder-empty-instruction">이 분류에 양식을 추가할 수 있습니다.</p>
+              <button class="button button-secondary" id="folder-login-button" type="button" hidden>로그인하고 파일 보기</button>
             </div>
           </section>
 
