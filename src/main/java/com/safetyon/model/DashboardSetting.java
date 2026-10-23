@@ -12,7 +12,7 @@ public class DashboardSetting {
     @Column(name = "setting_key", length = 64, nullable = false)
     private String key;
 
-    @Column(name = "setting_value", length = 120, nullable = false)
+    @Column(name = "setting_value", columnDefinition = "TEXT", nullable = false)
     private String value;
 
     protected DashboardSetting() {}

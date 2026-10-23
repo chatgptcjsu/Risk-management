@@ -419,9 +419,15 @@ app.get('/', (c) => {
             <div class="assessment-hub-heading"><div class="subcategory-label-row"><span class="folder-eyebrow" id="subcategory-label">유해∙위험요인</span><button class="subcategory-label-edit" id="edit-hazard-risk-label-button" type="button" aria-label="분류 레이블 편집" title="분류 레이블 편집"><Icon name="edit" /></button></div><h2 id="subcategory-title">팀과 공정을 선택하세요</h2><p id="subcategory-description">목록에서 팀 또는 공정을 선택해 파일을 확인합니다.</p></div>
             <div class="subcategory-team-grid" id="subcategory-team-grid"></div>
           </section>
+          <section class="panel team-process-page" id="team-process-view" hidden>
+            <div class="assessment-hub-toolbar"><button class="button button-secondary" id="team-process-back-button" type="button">팀 목록</button></div>
+            <div class="assessment-hub-heading"><span class="folder-eyebrow" id="team-process-label">유해∙위험요인</span><h2 id="team-process-title">팀 공정</h2><p id="team-process-description">공정을 선택하세요.</p><div class="team-process-actions"><button class="button button-secondary" id="team-process-all-files-button" type="button">팀 전체 파일</button><button class="button button-primary" id="add-team-process-button" type="button">공정 추가</button></div></div>
+            <div class="team-process-list" id="team-process-list"></div>
+            <div class="team-process-empty" id="team-process-empty" hidden>아직 등록된 공정이 없습니다. 공정 추가를 눌러 첫 공정을 등록하세요.</div>
+          </section>
           <section class="panel team-folder-page" id="team-folder-view" hidden>
             <div class="team-folder-toolbar">
-              <button class="button button-secondary" id="folder-back-button" type="button"><Icon name="down" className="back-chevron" /> 대시보드로</button>
+              <button class="button button-secondary" id="folder-back-button" type="button"><Icon name="down" className="back-chevron" /> 뒤로</button>
               <button class="button button-primary" id="folder-upload-button" type="button" hidden><Icon name="plus" /> 파일 추가</button>
               <input id="team-folder-file-input" type="file" multiple hidden />
             </div>
@@ -443,7 +449,7 @@ app.get('/', (c) => {
             </div>
           </section>
 
-          <footer class="page-footer"><span>© 2026 안전온 · 유해위험요인 관리</span><span><a href="#help">도움말</a><i></i><a href="#privacy">개인정보 처리방침</a><i></i><span>안전보건팀</span></span></footer>
+          <footer class="page-footer"><span>© 2026 안전온 · 유해∙위험요인 관리</span><span><a href="#help">도움말</a><i></i><a href="#privacy">개인정보 처리방침</a><i></i><span>안전보건팀</span></span></footer>
         </div>
       </main>
     </div>,

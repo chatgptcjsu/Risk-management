@@ -64,7 +64,7 @@
 
   const authState = { csrfToken: '' }
   const currentYear = new Date().getFullYear()
-  const teamProcesses = {
+  const defaultTeamProcesses = {
     '제지생산1팀': ['원질', '초지'],
     '제지생산2팀': ['카타', '포장'],
     '화장지생산팀': ['초지', '가공'],
@@ -76,6 +76,8 @@
     '전기팀': [],
     '구매1팀': [],
   }
+  let teamProcesses = { ...defaultTeamProcesses }
+  let currentTeam = ''
 
   const ensureCsrf = async () => {
     if (authState.csrfToken) return authState.csrfToken
@@ -150,9 +152,11 @@
   }
 
   const setPageView = (viewId) => {
+    document.querySelector('.page-heading').hidden = viewId !== 'dashboard-sections'
     document.querySelector('#dashboard-sections').hidden = viewId !== 'dashboard-sections'
     document.querySelector('#assessment-hub-view').hidden = viewId !== 'assessment-hub-view'
     document.querySelector('#assessment-subcategory-view').hidden = viewId !== 'assessment-subcategory-view'
+    document.querySelector('#team-process-view').hidden = viewId !== 'team-process-view'
     document.querySelector('#team-folder-view').hidden = viewId !== 'team-folder-view'
   }
 
@@ -230,23 +234,60 @@
       const teamButton = document.createElement('button')
       teamButton.type = 'button'
       teamButton.className = 'subcategory-team-open'
-      teamButton.textContent = `${team} · 전체 파일`
-      teamButton.addEventListener('click', () => showFolderView({ year: currentAssessmentYear, assessmentType: currentAssessmentType, category, team, process: '' }, 'subcategory'))
+      teamButton.textContent = processes.length ? `${team} · ${processes.length}개 공정` : `${team} · 공정 추가`
+      teamButton.addEventListener('click', () => showTeamProcessPage(team))
       article.append(teamButton)
-      if (processes.length) {
-        const processList = document.createElement('div')
-        processList.className = 'subcategory-process-list'
-        processes.forEach((process) => {
-          const processButton = document.createElement('button')
-          processButton.type = 'button'
-          processButton.className = 'subcategory-process-open'
-          processButton.textContent = process
-          processButton.addEventListener('click', () => showFolderView({ year: currentAssessmentYear, assessmentType: currentAssessmentType, category, team, process }, 'subcategory'))
-          processList.append(processButton)
-        })
-        article.append(processList)
-      }
       grid.append(article)
+    })
+  }
+
+  const showTeamProcessPage = (team) => {
+    currentTeam = team
+    const processes = teamProcesses[team] || []
+    const label = currentSubcategory === 'HAZARD_RISK' ? hazardRiskLabel : '개선요청 건'
+    const typeLabel = currentAssessmentType === 'REGULAR' ? '정기 위험성평가' : '수시 위험성평가'
+    setPageView('team-process-view')
+    document.querySelector('#page-title').textContent = team
+    document.querySelector('#edit-dashboard-title-button').hidden = true
+    document.querySelector('#team-process-label').textContent = label
+    document.querySelector('#team-process-title').textContent = `${team} · 공정 선택`
+    document.querySelector('#team-process-description').textContent = `${currentAssessmentYear}년 · ${typeLabel} · 공정을 선택해 파일을 열람하거나 추가하세요.`
+    document.querySelector('#breadcrumb-selection').textContent = `${team} · 공정`
+    const list = document.querySelector('#team-process-list')
+    list.replaceChildren()
+    processes.forEach((process) => {
+      const item = document.createElement('button')
+      item.type = 'button'
+      item.className = 'team-process-item'
+      item.textContent = process
+      item.addEventListener('click', () => showFolderView({ year: currentAssessmentYear, assessmentType: currentAssessmentType, category: currentSubcategory, team, process }, 'team-process'))
+      list.append(item)
+    })
+    document.querySelector('#team-process-empty').hidden = processes.length > 0
+  }
+
+  const addProcessToTeam = async () => {
+    const input = document.createElement('input')
+    input.type = 'text'
+    input.maxLength = 80
+    input.placeholder = '예: 원질, 초지'
+    const content = document.createElement('div')
+    content.append(field('새 공정 이름', input, `${currentTeam}에 추가할 공정 이름을 입력하세요.`))
+    showModal('팀 공정 추가', `${currentTeam}에 공정을 추가합니다.`, content, '공정 추가', async () => {
+      const process = input.value.trim()
+      if (!process) { toast('공정 이름을 입력해 주세요.'); return }
+      const existing = teamProcesses[currentTeam] || []
+      if (existing.some(name => name.toLocaleLowerCase() === process.toLocaleLowerCase())) {
+        toast('이미 등록된 공정입니다.')
+        return
+      }
+      const updatedTeams = { ...teamProcesses, [currentTeam]: [...existing, process] }
+      try {
+        teamProcesses = await apiRequest('/api/settings/team-processes', { method: 'PUT', body: JSON.stringify({ teams: updatedTeams }) })
+        closeModal()
+        showTeamProcessPage(currentTeam)
+        toast(`${process} 공정을 추가했습니다.`)
+      } catch (error) { showRequestError(error) }
     })
   }
 
@@ -276,7 +317,7 @@
     await loadFolderFiles()
   }
 
-  const renderSpreadsheetSheet = (sheet, sheetName, viewport, saveButton) => {
+  const renderSpreadsheetSheet = (sheet, sheetName, viewport, saveButton, drafts) => {
     const sourceRange = window.XLSX.utils.decode_range(sheet['!ref'] || 'A1')
     const rowCount = sourceRange.e.r - sourceRange.s.r + 1
     const totalColumns = sourceRange.e.c - sourceRange.s.c + 1
@@ -302,21 +343,30 @@
         const excelColumn = range.s.c + columnIndex
         const address = window.XLSX.utils.encode_cell({ r: excelRow, c: excelColumn })
         const sourceCell = sheet[address]
-        const value = rowValues[columnIndex]
-        cell.textContent = value == null ? '' : String(value)
+        const draftKey = `${sheetName}:${excelRow}:${excelColumn}`
+        const sourceValue = sourceCell?.t === 'd' && sourceCell.v instanceof Date
+          ? sourceCell.v.toISOString().slice(0, 10)
+          : sourceCell?.t === 'n'
+            ? String(sourceCell.v)
+            : rowValues[columnIndex]
+        const originalValue = sourceValue == null ? '' : String(sourceValue)
+        const draft = drafts.get(draftKey)
+        cell.textContent = draft ? draft.value : originalValue
         cell.contentEditable = 'true'
         cell.spellcheck = false
         cell.dataset.excelRow = String(excelRow)
         cell.dataset.excelColumn = String(excelColumn)
         cell.dataset.cellType = sourceCell?.t || 's'
-        cell.dataset.originalValue = cell.textContent
+        cell.dataset.originalValue = originalValue
+        if (draft) cell.classList.add('is-edited')
         cell.addEventListener('input', () => {
           const changed = cell.textContent !== cell.dataset.originalValue
           cell.classList.toggle('is-edited', changed)
-          const hasChanges = document.querySelector('.xlsx-preview-table td.is-edited') != null
-          saveButton.disabled = !hasChanges
+          if (changed) drafts.set(draftKey, { sheetName, row: excelRow, column: excelColumn, cellType: cell.dataset.cellType, value: cell.textContent || '' })
+          else drafts.delete(draftKey)
+          saveButton.disabled = drafts.size === 0
           const preview = document.querySelector('.xlsx-preview-modal')
-          if (preview) preview.dataset.unsaved = String(hasChanges)
+          if (preview) preview.dataset.unsaved = String(drafts.size > 0)
         })
         row.append(cell)
       }
@@ -352,6 +402,9 @@
     const viewport = document.createElement('div')
     viewport.className = 'xlsx-preview-table-scroll'
     const fallback = document.createElement('a')
+    const drafts = new Map()
+    let workbook
+    let activeSheetName = ''
     fallback.className = 'button button-secondary xlsx-preview-download'
     fallback.href = `/api/files/${file.id}/download`
     fallback.textContent = '원본 다운로드'
@@ -365,9 +418,10 @@
       if (file.fileSize > 20 * 1024 * 1024) throw new Error('20MB를 초과하는 파일은 미리보기 대신 원본을 다운로드해 주세요.')
       const response = await fetch(`/api/files/${file.id}/download`, { credentials: 'same-origin' })
       if (!response.ok) throw new Error('파일을 불러오지 못했습니다.')
-      const workbook = window.XLSX.read(await response.arrayBuffer(), { type: 'array', cellDates: true })
+      workbook = window.XLSX.read(await response.arrayBuffer(), { type: 'array', cellDates: true })
       if (!workbook.SheetNames.length) throw new Error('파일에 표시할 시트가 없습니다.')
       const renderTab = (activeName) => {
+        activeSheetName = activeName
         tabs.replaceChildren()
         workbook.SheetNames.forEach((sheetName) => {
           const tab = document.createElement('button')
@@ -379,28 +433,24 @@
           tab.addEventListener('click', () => renderTab(sheetName))
           tabs.append(tab)
         })
-        const result = renderSpreadsheetSheet(workbook.Sheets[activeName], activeName, viewport, saveButton)
+        const result = renderSpreadsheetSheet(workbook.Sheets[activeName], activeName, viewport, saveButton, drafts)
         status.textContent = `${result.rowCount}행 · ${result.totalColumns}열 · 셀을 클릭해 편집하세요.${result.rowCount > result.shownRows ? ` 처음 ${result.shownRows}행 표시` : ''}${result.totalColumns > result.shownColumns ? ` · 처음 ${result.shownColumns}열 표시` : ''}`
       }
       renderTab(workbook.SheetNames[0])
       saveButton.addEventListener('click', async () => {
-        const edits = Array.from(viewport.querySelectorAll('td.is-edited')).map((cell) => ({
-          row: Number(cell.dataset.excelRow),
-          column: Number(cell.dataset.excelColumn),
-          cellType: cell.dataset.cellType,
-          value: cell.textContent || '',
-        }))
+        const edits = Array.from(drafts.values())
         if (!edits.length) return
         saveButton.disabled = true
         saveButton.textContent = '저장 중…'
         try {
           await apiRequest(`/api/files/${file.id}/spreadsheet`, { method: 'PUT', body: JSON.stringify({ edits }) })
-          viewport.querySelectorAll('td.is-edited').forEach((cell) => {
-            cell.dataset.originalValue = cell.textContent
-            cell.classList.remove('is-edited')
-          })
+          drafts.clear()
+          const refreshed = await fetch(`/api/files/${file.id}/download`, { credentials: 'same-origin' })
+          if (!refreshed.ok) throw new Error('저장 후 엑셀 파일을 다시 불러오지 못했습니다.')
+          workbook = window.XLSX.read(await refreshed.arrayBuffer(), { type: 'array', cellDates: true })
           const preview = document.querySelector('.xlsx-preview-modal')
           if (preview) preview.dataset.unsaved = 'false'
+          renderTab(activeSheetName)
           status.textContent = `${edits.length}개 셀 변경 내용을 저장했습니다. ${status.textContent}`
           toast('엑셀 수정 내용을 저장했습니다.')
         } catch (error) {
@@ -408,7 +458,7 @@
           status.textContent = '저장하지 못했습니다. 내용을 확인하고 다시 시도해 주세요.'
         } finally {
           saveButton.textContent = '변경 내용 저장'
-          saveButton.disabled = viewport.querySelector('td.is-edited') == null
+          saveButton.disabled = drafts.size === 0
         }
       })
     } catch (error) {
@@ -637,12 +687,14 @@
 
   const loadWorkspaceData = async () => {
     try {
-      const [setting, hazardLabelSetting] = await Promise.all([
+      const [setting, hazardLabelSetting, processSettings] = await Promise.all([
         apiRequest('/api/settings/dashboard-title'),
         apiRequest('/api/settings/hazard-risk-label'),
+        apiRequest('/api/settings/team-processes'),
       ])
       dashboardTitle = setting.title || defaultDashboardTitle
       hazardRiskLabel = hazardLabelSetting.label || defaultHazardRiskLabel
+      teamProcesses = processSettings || { ...defaultTeamProcesses }
       document.querySelector('#page-title').textContent = dashboardTitle
       document.title = `안전온 | ${dashboardTitle}`
       applyHazardRiskLabel()
@@ -1054,8 +1106,12 @@
 
   document.querySelector('#assessment-hub-back-button')?.addEventListener('click', showDashboardPage)
   document.querySelector('#subcategory-back-button')?.addEventListener('click', () => showAssessmentHub(currentAssessmentYear, currentAssessmentType))
+  document.querySelector('#team-process-back-button')?.addEventListener('click', () => showAssessmentSubcategory(currentSubcategory))
+  document.querySelector('#team-process-all-files-button')?.addEventListener('click', () => showFolderView({ year: currentAssessmentYear, assessmentType: currentAssessmentType, category: currentSubcategory, team: currentTeam, process: '' }, 'team-process'))
+  document.querySelector('#add-team-process-button')?.addEventListener('click', addProcessToTeam)
   document.querySelector('#folder-back-button')?.addEventListener('click', () => {
     if (folderReturnMode === 'subcategory') showAssessmentSubcategory(currentSubcategory)
+    else if (folderReturnMode === 'team-process') showTeamProcessPage(currentTeam)
     else showDashboardPage()
   })
 
@@ -1087,6 +1143,15 @@
     button.addEventListener('click', () => toast('상세 화면은 다음 단계에서 연결됩니다.'))
   })
 
+  document.querySelector('.brand')?.addEventListener('click', (event) => {
+    event.preventDefault()
+    showDashboardPage()
+    if (window.innerWidth <= 660) document.querySelector('#sidebar')?.classList.remove('mobile-open')
+  })
+  document.querySelector('.dashboard-nav-item')?.addEventListener('click', (event) => {
+    event.preventDefault()
+    showDashboardPage()
+  })
   document.querySelector('#mobile-menu-button')?.addEventListener('click', () => {
     document.querySelector('#sidebar')?.classList.toggle('mobile-open')
   })

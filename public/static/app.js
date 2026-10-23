@@ -64,7 +64,7 @@
 
   const authState = { csrfToken: '' }
   const currentYear = new Date().getFullYear()
-  const teamProcesses = {
+  const defaultTeamProcesses = {
     '제지생산1팀': ['원질', '초지'],
     '제지생산2팀': ['카타', '포장'],
     '화장지생산팀': ['초지', '가공'],
@@ -76,6 +76,8 @@
     '전기팀': [],
     '구매1팀': [],
   }
+  let teamProcesses = { ...defaultTeamProcesses }
+  let currentTeam = ''
 
   const ensureCsrf = async () => {
     if (authState.csrfToken) return authState.csrfToken
@@ -150,9 +152,11 @@
   }
 
   const setPageView = (viewId) => {
+    document.querySelector('.page-heading').hidden = viewId !== 'dashboard-sections'
     document.querySelector('#dashboard-sections').hidden = viewId !== 'dashboard-sections'
     document.querySelector('#assessment-hub-view').hidden = viewId !== 'assessment-hub-view'
     document.querySelector('#assessment-subcategory-view').hidden = viewId !== 'assessment-subcategory-view'
+    document.querySelector('#team-process-view').hidden = viewId !== 'team-process-view'
     document.querySelector('#team-folder-view').hidden = viewId !== 'team-folder-view'
   }
 
@@ -230,23 +234,60 @@
       const teamButton = document.createElement('button')
       teamButton.type = 'button'
       teamButton.className = 'subcategory-team-open'
-      teamButton.textContent = `${team} · 전체 파일`
-      teamButton.addEventListener('click', () => showFolderView({ year: currentAssessmentYear, assessmentType: currentAssessmentType, category, team, process: '' }, 'subcategory'))
+      teamButton.textContent = processes.length ? `${team} · ${processes.length}개 공정` : `${team} · 공정 추가`
+      teamButton.addEventListener('click', () => showTeamProcessPage(team))
       article.append(teamButton)
-      if (processes.length) {
-        const processList = document.createElement('div')
-        processList.className = 'subcategory-process-list'
-        processes.forEach((process) => {
-          const processButton = document.createElement('button')
-          processButton.type = 'button'
-          processButton.className = 'subcategory-process-open'
-          processButton.textContent = process
-          processButton.addEventListener('click', () => showFolderView({ year: currentAssessmentYear, assessmentType: currentAssessmentType, category, team, process }, 'subcategory'))
-          processList.append(processButton)
-        })
-        article.append(processList)
-      }
       grid.append(article)
+    })
+  }
+
+  const showTeamProcessPage = (team) => {
+    currentTeam = team
+    const processes = teamProcesses[team] || []
+    const label = currentSubcategory === 'HAZARD_RISK' ? hazardRiskLabel : '개선요청 건'
+    const typeLabel = currentAssessmentType === 'REGULAR' ? '정기 위험성평가' : '수시 위험성평가'
+    setPageView('team-process-view')
+    document.querySelector('#page-title').textContent = team
+    document.querySelector('#edit-dashboard-title-button').hidden = true
+    document.querySelector('#team-process-label').textContent = label
+    document.querySelector('#team-process-title').textContent = `${team} · 공정 선택`
+    document.querySelector('#team-process-description').textContent = `${currentAssessmentYear}년 · ${typeLabel} · 공정을 선택해 파일을 열람하거나 추가하세요.`
+    document.querySelector('#breadcrumb-selection').textContent = `${team} · 공정`
+    const list = document.querySelector('#team-process-list')
+    list.replaceChildren()
+    processes.forEach((process) => {
+      const item = document.createElement('button')
+      item.type = 'button'
+      item.className = 'team-process-item'
+      item.textContent = process
+      item.addEventListener('click', () => showFolderView({ year: currentAssessmentYear, assessmentType: currentAssessmentType, category: currentSubcategory, team, process }, 'team-process'))
+      list.append(item)
+    })
+    document.querySelector('#team-process-empty').hidden = processes.length > 0
+  }
+
+  const addProcessToTeam = async () => {
+    const input = document.createElement('input')
+    input.type = 'text'
+    input.maxLength = 80
+    input.placeholder = '예: 원질, 초지'
+    const content = document.createElement('div')
+    content.append(field('새 공정 이름', input, `${currentTeam}에 추가할 공정 이름을 입력하세요.`))
+    showModal('팀 공정 추가', `${currentTeam}에 공정을 추가합니다.`, content, '공정 추가', async () => {
+      const process = input.value.trim()
+      if (!process) { toast('공정 이름을 입력해 주세요.'); return }
+      const existing = teamProcesses[currentTeam] || []
+      if (existing.some(name => name.toLocaleLowerCase() === process.toLocaleLowerCase())) {
+        toast('이미 등록된 공정입니다.')
+        return
+      }
+      const updatedTeams = { ...teamProcesses, [currentTeam]: [...existing, process] }
+      try {
+        teamProcesses = await apiRequest('/api/settings/team-processes', { method: 'PUT', body: JSON.stringify({ teams: updatedTeams }) })
+        closeModal()
+        showTeamProcessPage(currentTeam)
+        toast(`${process} 공정을 추가했습니다.`)
+      } catch (error) { showRequestError(error) }
     })
   }
 
@@ -646,12 +687,14 @@
 
   const loadWorkspaceData = async () => {
     try {
-      const [setting, hazardLabelSetting] = await Promise.all([
+      const [setting, hazardLabelSetting, processSettings] = await Promise.all([
         apiRequest('/api/settings/dashboard-title'),
         apiRequest('/api/settings/hazard-risk-label'),
+        apiRequest('/api/settings/team-processes'),
       ])
       dashboardTitle = setting.title || defaultDashboardTitle
       hazardRiskLabel = hazardLabelSetting.label || defaultHazardRiskLabel
+      teamProcesses = processSettings || { ...defaultTeamProcesses }
       document.querySelector('#page-title').textContent = dashboardTitle
       document.title = `안전온 | ${dashboardTitle}`
       applyHazardRiskLabel()
@@ -1063,8 +1106,12 @@
 
   document.querySelector('#assessment-hub-back-button')?.addEventListener('click', showDashboardPage)
   document.querySelector('#subcategory-back-button')?.addEventListener('click', () => showAssessmentHub(currentAssessmentYear, currentAssessmentType))
+  document.querySelector('#team-process-back-button')?.addEventListener('click', () => showAssessmentSubcategory(currentSubcategory))
+  document.querySelector('#team-process-all-files-button')?.addEventListener('click', () => showFolderView({ year: currentAssessmentYear, assessmentType: currentAssessmentType, category: currentSubcategory, team: currentTeam, process: '' }, 'team-process'))
+  document.querySelector('#add-team-process-button')?.addEventListener('click', addProcessToTeam)
   document.querySelector('#folder-back-button')?.addEventListener('click', () => {
     if (folderReturnMode === 'subcategory') showAssessmentSubcategory(currentSubcategory)
+    else if (folderReturnMode === 'team-process') showTeamProcessPage(currentTeam)
     else showDashboardPage()
   })
 
@@ -1096,6 +1143,15 @@
     button.addEventListener('click', () => toast('상세 화면은 다음 단계에서 연결됩니다.'))
   })
 
+  document.querySelector('.brand')?.addEventListener('click', (event) => {
+    event.preventDefault()
+    showDashboardPage()
+    if (window.innerWidth <= 660) document.querySelector('#sidebar')?.classList.remove('mobile-open')
+  })
+  document.querySelector('.dashboard-nav-item')?.addEventListener('click', (event) => {
+    event.preventDefault()
+    showDashboardPage()
+  })
   document.querySelector('#mobile-menu-button')?.addEventListener('click', () => {
     document.querySelector('#sidebar')?.classList.toggle('mobile-open')
   })
