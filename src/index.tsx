@@ -55,7 +55,7 @@ const assessmentFolders = [
     name: '정기 위험성평가',
     description: '위험요인 평가와 개선요청 관리',
     subfolders: [
-      { id: 'hazards', name: '위험성평가 (유해위험요인)' },
+      { id: 'hazards', name: '유해∙위험요인' },
       { id: 'improvements', name: '개선요청 건' },
     ],
   },
@@ -162,7 +162,7 @@ app.get('/', (c) => {
                   const categoryId = `${year}-${folder.id}`
                   return (
                     <div class="tree-category-group" key={categoryId}>
-                      <button class="tree-toggle tree-category-toggle" type="button" data-tree-toggle={`category-${categoryId}`} aria-expanded="false" aria-controls={`category-content-${categoryId}`}>
+                      <button class="tree-toggle tree-category-toggle" type="button" data-tree-toggle={`category-${categoryId}`} data-assessment-type={folder.id === 'regular' ? 'REGULAR' : 'AD_HOC'} data-assessment-year={year} aria-expanded="false" aria-controls={`category-content-${categoryId}`}>
                         <span class={`tree-category-icon category-icon-${folder.id}`}><Icon name={folder.id === 'regular' ? 'clipboard' : 'alert'} /></span>
                         <span class="tree-category-copy"><strong>{folder.name}</strong><small>{folder.description}</small></span>
                         <Icon name="down" className="tree-chevron" />
@@ -173,8 +173,8 @@ app.get('/', (c) => {
                           const subfolderPath = `${year}년 / ${folder.name} / ${subfolder.name}`
                           return (
                             <div class="tree-subfolder-group" key={subfolderId}>
-                              <button class="tree-toggle tree-subfolder-toggle" type="button" data-tree-toggle={`subfolder-${subfolderId}`} aria-expanded="false" aria-controls={`subfolder-content-${subfolderId}`}>
-                                <span class="tree-subfolder-marker"></span><span>{subfolder.name}</span><Icon name="down" className="tree-chevron" />
+                              <button class="tree-toggle tree-subfolder-toggle" type="button" data-tree-toggle={`subfolder-${subfolderId}`} data-subcategory={subfolder.id === 'hazards' ? 'HAZARD_RISK' : 'IMPROVEMENT_REQUEST'} data-assessment-type={folder.id === 'regular' ? 'REGULAR' : 'AD_HOC'} data-assessment-year={year} aria-expanded="false" aria-controls={`subfolder-content-${subfolderId}`}>
+                                <span class="tree-subfolder-marker"></span><span data-hazard-label={subfolder.id === 'hazards' ? 'true' : undefined}>{subfolder.name}</span><Icon name="down" className="tree-chevron" />
                               </button>
                               <div class="tree-subfolder-content" id={`subfolder-content-${subfolderId}`} hidden>
                                 <TeamTree
@@ -221,7 +221,7 @@ app.get('/', (c) => {
         </div>
         <button class="profile-card" type="button" aria-label="프로필 메뉴">
           <span class="profile-avatar">김</span>
-          <span class="profile-copy"><strong>김안전</strong><small>안전보건팀 · 관리자</small></span>
+          <span class="profile-copy"><strong>현장 구성원</strong><small>청주공장 · 공용</small></span>
           <Icon name="more" className="profile-more" />
         </button>
       </aside>
@@ -253,8 +253,6 @@ app.get('/', (c) => {
                 <output id="dashboard-size-value" for="dashboard-size-range">100%</output>
                 <button class="size-step-button" id="dashboard-size-increase" type="button" aria-label="대시보드 확대">+</button>
               </div>
-              <button class="button button-secondary" id="user-admin-button" type="button" hidden><Icon name="users" /> 사용자 관리</button>
-              <button class="button button-secondary" id="manager-auth-button" type="button"><Icon name="users" /> 관리자 로그인</button>
               <button class="button button-secondary" id="export-button" type="button"><Icon name="download" /> 내보내기</button>
               <button class="button button-primary" id="new-assessment-button" type="button"><Icon name="plus" /> 새 평가 만들기</button>
             </div>
@@ -411,6 +409,16 @@ app.get('/', (c) => {
           </section>
           </div>
 
+          <section class="panel assessment-hub-page" id="assessment-hub-view" hidden>
+            <div class="assessment-hub-toolbar"><button class="button button-secondary" id="assessment-hub-back-button" type="button">대시보드로</button></div>
+            <div class="assessment-hub-heading"><span class="folder-eyebrow" id="assessment-hub-year">2026년</span><h2 id="assessment-hub-title">정기 위험성평가</h2><p id="assessment-hub-description">하위 분류를 선택해 팀과 공정의 파일을 확인하세요.</p></div>
+            <div class="assessment-hub-grid" id="assessment-hub-categories"></div>
+          </section>
+          <section class="panel assessment-subcategory-page" id="assessment-subcategory-view" hidden>
+            <div class="assessment-hub-toolbar"><button class="button button-secondary" id="subcategory-back-button" type="button">분류 목록</button></div>
+            <div class="assessment-hub-heading"><div class="subcategory-label-row"><span class="folder-eyebrow" id="subcategory-label">유해∙위험요인</span><button class="subcategory-label-edit" id="edit-hazard-risk-label-button" type="button" aria-label="분류 레이블 편집" title="분류 레이블 편집"><Icon name="edit" /></button></div><h2 id="subcategory-title">팀과 공정을 선택하세요</h2><p id="subcategory-description">목록에서 팀 또는 공정을 선택해 파일을 확인합니다.</p></div>
+            <div class="subcategory-team-grid" id="subcategory-team-grid"></div>
+          </section>
           <section class="panel team-folder-page" id="team-folder-view" hidden>
             <div class="team-folder-toolbar">
               <button class="button button-secondary" id="folder-back-button" type="button"><Icon name="down" className="back-chevron" /> 대시보드로</button>

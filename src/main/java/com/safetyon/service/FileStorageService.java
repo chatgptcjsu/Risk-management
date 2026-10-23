@@ -1,5 +1,6 @@
 package com.safetyon.service;
 
+import com.safetyon.model.ApiDtos.SpreadsheetCellEdit;
 import com.safetyon.model.AssessmentType;
 import com.safetyon.model.FileCategory;
 import com.safetyon.model.StoredFile;
@@ -12,8 +13,17 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellType;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.usermodel.WorkbookFactory;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -82,6 +92,78 @@ public class FileStorageService {
             }
         }
         return saved;
+    }
+
+    @Transactional
+    public StoredFile updateSpreadsheetCells(long id, List<SpreadsheetCellEdit> edits, String editedBy) {
+        StoredFile metadata = getMetadata(id);
+        if (metadata.getCategory() != FileCategory.HAZARD_RISK) {
+            throw new IllegalArgumentException("유해∙위험요인 엑셀 파일만 편집할 수 있습니다.");
+        }
+        String extension = extensionOf(metadata.getOriginalName());
+        if (!extension.equals("xlsx") && !extension.equals("xls")) {
+            throw new IllegalArgumentException("XLS 또는 XLSX 파일만 편집할 수 있습니다.");
+        }
+        if (metadata.getFileSize() > MAX_FILE_SIZE) throw new IllegalArgumentException("50MB를 초과하는 엑셀 파일은 편집할 수 없습니다.");
+        if (edits == null || edits.isEmpty() || edits.size() > 500) {
+            throw new IllegalArgumentException("수정할 셀은 1개 이상, 500개 이하여야 합니다.");
+        }
+        Path originalPath = storedPath(metadata);
+        Path tempPath = null;
+        try {
+            try (InputStream input = Files.newInputStream(originalPath); Workbook workbook = WorkbookFactory.create(input)) {
+                java.util.HashSet<String> seenCells = new java.util.HashSet<>();
+                for (SpreadsheetCellEdit edit : edits) {
+                    if (edit.row() < 0 || edit.column() < 0) throw new IllegalArgumentException("셀 위치가 올바르지 않습니다.");
+                    String cellKey = edit.sheetName() + "!" + edit.row() + ":" + edit.column();
+                    if (!seenCells.add(cellKey)) throw new IllegalArgumentException("같은 셀이 중복으로 전송되었습니다.");
+                    int sheetIndex = workbook.getSheetIndex(edit.sheetName());
+                    if (sheetIndex < 0) throw new IllegalArgumentException("엑셀 시트를 찾을 수 없습니다: " + edit.sheetName());
+                    Sheet sheet = workbook.getSheetAt(sheetIndex);
+                    int maxRows = "xls".equals(extension) ? 65_536 : 1_048_576;
+                    int maxColumns = "xls".equals(extension) ? 256 : 16_384;
+                    if (edit.row() >= maxRows || edit.column() >= maxColumns) throw new IllegalArgumentException("선택한 파일 형식에서 지원하지 않는 셀 위치입니다.");
+                    Row row = sheet.getRow(edit.row());
+                    if (row == null) throw new IllegalArgumentException("기존 행에 있는 셀만 수정할 수 있습니다.");
+                    if (row.getCell(edit.column()) == null) throw new IllegalArgumentException("기존 셀에만 값을 입력할 수 있습니다.");
+                    Cell cell = row.getCell(edit.column());
+                    if ("n".equalsIgnoreCase(edit.cellType()) && !edit.value().isBlank()) {
+                        double number;
+                        try { number = Double.parseDouble(edit.value().trim()); }
+                        catch (NumberFormatException ex) { throw new IllegalArgumentException("숫자 셀에는 숫자만 입력할 수 있습니다."); }
+                        if (!Double.isFinite(number)) throw new IllegalArgumentException("숫자 셀 값이 올바르지 않습니다.");
+                        cell.setCellValue(number);
+                    } else if ("d".equalsIgnoreCase(edit.cellType()) && !edit.value().isBlank()) {
+                        try { cell.setCellValue(java.sql.Date.valueOf(java.time.LocalDate.parse(edit.value().trim()))); }
+                        catch (java.time.DateTimeException ex) { throw new IllegalArgumentException("날짜 셀은 YYYY-MM-DD 형식으로 입력해 주세요."); }
+                    } else {
+                        cell.setCellType(CellType.STRING);
+                        cell.setCellValue(edit.value());
+                    }
+                }
+                tempPath = Files.createTempFile(originalPath.getParent(), ".spreadsheet-edit-", ".tmp");
+                try (OutputStream output = Files.newOutputStream(tempPath)) {
+                    workbook.write(output);
+                }
+            }
+            long updatedSize = Files.size(tempPath);
+            if (updatedSize > MAX_FILE_SIZE) throw new IllegalArgumentException("수정 후 파일이 50MB 한도를 초과합니다.");
+            try {
+                Files.move(tempPath, originalPath, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            } catch (AtomicMoveNotSupportedException ignored) {
+                Files.move(tempPath, originalPath, StandardCopyOption.REPLACE_EXISTING);
+            }
+            metadata.updateContentMetadata(metadata.getContentType(), updatedSize, editedBy);
+            return files.save(metadata);
+        } catch (IOException ex) {
+            throw new IllegalStateException("엑셀 파일을 저장하지 못했습니다.", ex);
+        } catch (org.apache.poi.EncryptedDocumentException ex) {
+            throw new IllegalArgumentException("암호화되었거나 지원하지 않는 엑셀 파일입니다.", ex);
+        } finally {
+            if (tempPath != null) {
+                try { Files.deleteIfExists(tempPath); } catch (IOException ignored) {}
+            }
+        }
     }
 
     @Transactional(readOnly = true)

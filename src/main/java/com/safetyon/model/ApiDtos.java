@@ -4,6 +4,8 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Size;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -65,6 +67,16 @@ public final class ApiDtos {
     ) {}
 
     public record UploadResponse(List<FileMetadataDto> files) {}
+
+    public record SpreadsheetEditRequest(@NotNull @Size(min = 1, max = 500) List<@Valid SpreadsheetCellEdit> edits) {}
+
+    public record SpreadsheetCellEdit(
+            @Min(0) @Max(1_048_575) int row,
+            @Min(0) @Max(16_383) int column,
+            @NotBlank @Size(max = 8) String cellType,
+            @NotNull @Size(max = 8_192) String value,
+            @NotBlank @Size(max = 31) String sheetName
+    ) {}
 
     public record CurrentUserDto(String username, String displayName, String role) {}
 

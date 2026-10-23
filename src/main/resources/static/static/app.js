@@ -10,7 +10,12 @@
     window.setTimeout(() => notice.remove(), 3200)
   }
 
-  const closeModal = () => document.querySelector('.modal-backdrop')?.remove()
+  const closeModal = () => {
+    const backdrop = document.querySelector('.modal-backdrop')
+    const preview = backdrop?.querySelector('.xlsx-preview-modal')
+    if (preview?.dataset.unsaved === 'true' && !window.confirm('저장하지 않은 엑셀 수정 내용이 있습니다. 닫을까요?')) return
+    backdrop?.remove()
+  }
 
   const showModal = (title, subtitle, content, submitText, onSubmit) => {
     closeModal()
@@ -57,7 +62,7 @@
     return wrapper
   }
 
-  const authState = { user: null, csrfToken: '' }
+  const authState = { csrfToken: '' }
   const currentYear = new Date().getFullYear()
   const teamProcesses = {
     '제지생산1팀': ['원질', '초지'],
@@ -102,16 +107,17 @@
     return payload
   }
 
-  const isAdmin = () => authState.user?.role === 'ADMIN'
   const defaultDashboardTitle = '유해위험요인'
+  const defaultHazardRiskLabel = '유해∙위험요인'
   let dashboardTitle = defaultDashboardTitle
+  let hazardRiskLabel = defaultHazardRiskLabel
+  let currentAssessmentYear = new Date().getFullYear()
+  let currentAssessmentType = 'REGULAR'
+  let currentSubcategory = 'HAZARD_RISK'
+  let folderReturnMode = 'dashboard'
   let activeFolderScope = null
 
   const updateAccessUi = () => {
-    const loginButton = document.querySelector('#manager-auth-button')
-    if (loginButton) loginButton.textContent = authState.user ? `${authState.user.displayName} · 로그아웃` : '관리자 로그인'
-    const userAdminButton = document.querySelector('#user-admin-button')
-    if (userAdminButton) userAdminButton.hidden = !isAdmin()
     const addImprovementButton = document.querySelector('#add-improvement-button')
     if (addImprovementButton) addImprovementButton.hidden = false
     const folderUploadButton = document.querySelector('#folder-upload-button')
@@ -120,9 +126,16 @@
       (activeFolderScope.category === 'HAZARD_RISK' && activeFolderScope.assessmentType === 'REGULAR')
     )
     if (folderUploadButton) folderUploadButton.hidden = !categoryAllowsUpload
-    document.querySelectorAll('.improvement-status-select').forEach((select) => {
-      select.disabled = false
+  }
+
+  const applyHazardRiskLabel = () => {
+    document.querySelectorAll('[data-hazard-label="true"]').forEach((label) => { label.textContent = hazardRiskLabel })
+    document.querySelectorAll('[data-file-category="HAZARD_RISK"]').forEach((item) => {
+      if (item.dataset.workspaceSelection) {
+        item.dataset.workspaceSelection = item.dataset.workspaceSelection.replaceAll(defaultHazardRiskLabel, hazardRiskLabel)
+      }
     })
+    document.querySelector('#subcategory-label').textContent = hazardRiskLabel
   }
 
   const setEmptyRow = (tbody, columns, message) => {
@@ -136,12 +149,113 @@
     tbody.append(row)
   }
 
-  const showFolderView = async (scope) => {
+  const setPageView = (viewId) => {
+    document.querySelector('#dashboard-sections').hidden = viewId !== 'dashboard-sections'
+    document.querySelector('#assessment-hub-view').hidden = viewId !== 'assessment-hub-view'
+    document.querySelector('#assessment-subcategory-view').hidden = viewId !== 'assessment-subcategory-view'
+    document.querySelector('#team-folder-view').hidden = viewId !== 'team-folder-view'
+  }
+
+  const showDashboardPage = () => {
+    activeFolderScope = null
+    folderReturnMode = 'dashboard'
+    setPageView('dashboard-sections')
+    document.querySelector('#page-title').textContent = dashboardTitle
+    document.querySelector('#edit-dashboard-title-button').hidden = false
+    document.querySelector('#page-subtitle').textContent = '작업현장의 유해·위험요인과 개선 진행 상황을 확인하세요.'
+    document.querySelector('#breadcrumb-selection').textContent = '대시보드'
+  }
+
+  const showAssessmentHub = (year, assessmentType) => {
+    currentAssessmentYear = Number(year)
+    currentAssessmentType = assessmentType
+    const typeLabel = assessmentType === 'REGULAR' ? '정기 위험성평가' : '수시 위험성평가'
+    const yearLabel = `${year}년`
+    setPageView('assessment-hub-view')
+    document.querySelector('#page-title').textContent = typeLabel
+    document.querySelector('#edit-dashboard-title-button').hidden = true
+    document.querySelector('#page-subtitle').textContent = `${yearLabel} · ${typeLabel}의 세부 분류를 선택하세요.`
+    document.querySelector('#assessment-hub-year').textContent = yearLabel
+    document.querySelector('#assessment-hub-title').textContent = typeLabel
+    document.querySelector('#assessment-hub-description').textContent = assessmentType === 'REGULAR'
+      ? '정기 평가 자료와 개선요청 파일을 분류별로 확인하고 편집할 수 있습니다.'
+      : '수시 평가의 개선요청 파일을 분류별로 확인하고 편집할 수 있습니다.'
+    document.querySelector('#breadcrumb-selection').textContent = typeLabel
+    const categories = document.querySelector('#assessment-hub-categories')
+    categories.replaceChildren()
+    const entries = assessmentType === 'REGULAR'
+      ? [{ id: 'HAZARD_RISK', label: hazardRiskLabel, description: '유해·위험요인 엑셀 평가표', icon: 'XLSX' }, { id: 'IMPROVEMENT_REQUEST', label: '개선요청 건', description: '개선요청 파워포인트 파일', icon: 'PPT' }]
+      : [{ id: 'IMPROVEMENT_REQUEST', label: '개선요청 건', description: '개선요청 파워포인트 파일', icon: 'PPT' }]
+    entries.forEach((entry) => {
+      const card = document.createElement('button')
+      card.type = 'button'
+      card.className = 'assessment-category-card'
+      const icon = document.createElement('span')
+      icon.className = `assessment-category-icon ${entry.id === 'HAZARD_RISK' ? 'excel' : 'presentation'}`
+      icon.textContent = entry.icon
+      const copy = document.createElement('span')
+      copy.className = 'assessment-category-copy'
+      const name = document.createElement('strong')
+      name.textContent = entry.label
+      const description = document.createElement('small')
+      description.textContent = entry.description
+      copy.append(name, description)
+      const arrow = document.createElement('span')
+      arrow.className = 'assessment-category-arrow'
+      arrow.textContent = '›'
+      card.append(icon, copy, arrow)
+      card.addEventListener('click', () => showAssessmentSubcategory(entry.id))
+      categories.append(card)
+    })
+  }
+
+  const showAssessmentSubcategory = (category) => {
+    currentSubcategory = category
+    const label = category === 'HAZARD_RISK' ? hazardRiskLabel : '개선요청 건'
+    const typeLabel = currentAssessmentType === 'REGULAR' ? '정기 위험성평가' : '수시 위험성평가'
+    setPageView('assessment-subcategory-view')
+    document.querySelector('#page-title').textContent = label
+    document.querySelector('#edit-dashboard-title-button').hidden = true
+    document.querySelector('#subcategory-label').textContent = label
+    document.querySelector('#edit-hazard-risk-label-button').hidden = category !== 'HAZARD_RISK'
+    document.querySelector('#subcategory-title').textContent = `${currentAssessmentYear}년 · ${typeLabel}`
+    document.querySelector('#subcategory-description').textContent = '팀 또는 공정을 선택해 파일을 확인하거나 업로드하세요.'
+    document.querySelector('#page-subtitle').textContent = `${label} · 팀과 공정별 파일 보관함입니다.`
+    document.querySelector('#breadcrumb-selection').textContent = label
+    const grid = document.querySelector('#subcategory-team-grid')
+    grid.replaceChildren()
+    Object.entries(teamProcesses).forEach(([team, processes]) => {
+      const article = document.createElement('article')
+      article.className = 'subcategory-team-card'
+      const teamButton = document.createElement('button')
+      teamButton.type = 'button'
+      teamButton.className = 'subcategory-team-open'
+      teamButton.textContent = `${team} · 전체 파일`
+      teamButton.addEventListener('click', () => showFolderView({ year: currentAssessmentYear, assessmentType: currentAssessmentType, category, team, process: '' }, 'subcategory'))
+      article.append(teamButton)
+      if (processes.length) {
+        const processList = document.createElement('div')
+        processList.className = 'subcategory-process-list'
+        processes.forEach((process) => {
+          const processButton = document.createElement('button')
+          processButton.type = 'button'
+          processButton.className = 'subcategory-process-open'
+          processButton.textContent = process
+          processButton.addEventListener('click', () => showFolderView({ year: currentAssessmentYear, assessmentType: currentAssessmentType, category, team, process }, 'subcategory'))
+          processList.append(processButton)
+        })
+        article.append(processList)
+      }
+      grid.append(article)
+    })
+  }
+
+  const showFolderView = async (scope, returnMode = 'dashboard') => {
     activeFolderScope = scope
-    const title = scope.category === 'HAZARD_RISK' ? '유해위험요인' : '개선요청 건'
+    folderReturnMode = returnMode
+    const title = scope.category === 'HAZARD_RISK' ? hazardRiskLabel : '개선요청 건'
     const path = [scope.year + '년', scope.assessmentType === 'REGULAR' ? '정기 위험성평가' : '수시 위험성평가', title, scope.team, scope.process].filter(Boolean).join(' / ')
-    document.querySelector('#dashboard-sections').hidden = true
-    document.querySelector('#team-folder-view').hidden = false
+    setPageView('team-folder-view')
     document.querySelector('#page-title').textContent = title
     document.querySelector('#edit-dashboard-title-button').hidden = true
     document.querySelector('#page-subtitle').textContent = `${scope.team}${scope.process ? ` · ${scope.process}` : ''} 분류에 보관된 파일과 업로드 내역입니다.`
@@ -162,7 +276,7 @@
     await loadFolderFiles()
   }
 
-  const renderSpreadsheetSheet = (sheet, sheetName, viewport) => {
+  const renderSpreadsheetSheet = (sheet, sheetName, viewport, saveButton) => {
     const sourceRange = window.XLSX.utils.decode_range(sheet['!ref'] || 'A1')
     const rowCount = sourceRange.e.r - sourceRange.s.r + 1
     const totalColumns = sourceRange.e.c - sourceRange.s.c + 1
@@ -182,10 +296,28 @@
     visibleRows.forEach((rowValues, rowIndex) => {
       const row = document.createElement('tr')
       if (rowIndex === 0) row.className = 'xlsx-preview-first-row'
-      for (let columnIndex = 0; columnIndex < columnCount; columnIndex += 1) {
+      for (let columnIndex = 0; columnIndex < shownColumns; columnIndex += 1) {
         const cell = document.createElement('td')
+        const excelRow = range.s.r + rowIndex
+        const excelColumn = range.s.c + columnIndex
+        const address = window.XLSX.utils.encode_cell({ r: excelRow, c: excelColumn })
+        const sourceCell = sheet[address]
         const value = rowValues[columnIndex]
         cell.textContent = value == null ? '' : String(value)
+        cell.contentEditable = 'true'
+        cell.spellcheck = false
+        cell.dataset.excelRow = String(excelRow)
+        cell.dataset.excelColumn = String(excelColumn)
+        cell.dataset.cellType = sourceCell?.t || 's'
+        cell.dataset.originalValue = cell.textContent
+        cell.addEventListener('input', () => {
+          const changed = cell.textContent !== cell.dataset.originalValue
+          cell.classList.toggle('is-edited', changed)
+          const hasChanges = document.querySelector('.xlsx-preview-table td.is-edited') != null
+          saveButton.disabled = !hasChanges
+          const preview = document.querySelector('.xlsx-preview-modal')
+          if (preview) preview.dataset.unsaved = String(hasChanges)
+        })
         row.append(cell)
       }
       body.append(row)
@@ -198,6 +330,19 @@
   const openSpreadsheetPreview = async (file) => {
     const content = document.createElement('div')
     content.className = 'xlsx-preview-content'
+    const toolbar = document.createElement('div')
+    toolbar.className = 'xlsx-preview-actions'
+    const saveButton = document.createElement('button')
+    saveButton.type = 'button'
+    saveButton.className = 'button button-primary'
+    saveButton.textContent = '변경 내용 저장'
+    saveButton.disabled = true
+    const printButton = document.createElement('button')
+    printButton.type = 'button'
+    printButton.className = 'button button-secondary xlsx-print-button'
+    printButton.textContent = '인쇄'
+    printButton.addEventListener('click', () => window.print())
+    toolbar.append(saveButton, printButton)
     const status = document.createElement('p')
     status.className = 'xlsx-preview-status'
     status.textContent = '엑셀 파일을 브라우저에서 여는 중입니다…'
@@ -211,8 +356,8 @@
     fallback.href = `/api/files/${file.id}/download`
     fallback.textContent = '원본 다운로드'
     fallback.hidden = true
-    content.append(status, tabs, viewport, fallback)
-    showModal(file.originalName, '엑셀 내용을 브라우저에서 미리 봅니다. 파일은 기기에 저장되지 않습니다.', content, '닫기', closeModal)
+    content.append(toolbar, status, tabs, viewport, fallback)
+    showModal(file.originalName, '셀을 직접 편집한 뒤 저장하거나 인쇄할 수 있습니다.', content, '닫기', closeModal)
     document.querySelector('.modal-card')?.classList.add('xlsx-preview-modal')
 
     try {
@@ -234,10 +379,38 @@
           tab.addEventListener('click', () => renderTab(sheetName))
           tabs.append(tab)
         })
-        const result = renderSpreadsheetSheet(workbook.Sheets[activeName], activeName, viewport)
-        status.textContent = `${result.rowCount}행 · ${result.totalColumns}열${result.rowCount > result.shownRows ? ` · 처음 ${result.shownRows}행 표시` : ''}${result.totalColumns > result.shownColumns ? ` · 처음 ${result.shownColumns}열 표시` : ''}`
+        const result = renderSpreadsheetSheet(workbook.Sheets[activeName], activeName, viewport, saveButton)
+        status.textContent = `${result.rowCount}행 · ${result.totalColumns}열 · 셀을 클릭해 편집하세요.${result.rowCount > result.shownRows ? ` 처음 ${result.shownRows}행 표시` : ''}${result.totalColumns > result.shownColumns ? ` · 처음 ${result.shownColumns}열 표시` : ''}`
       }
       renderTab(workbook.SheetNames[0])
+      saveButton.addEventListener('click', async () => {
+        const edits = Array.from(viewport.querySelectorAll('td.is-edited')).map((cell) => ({
+          row: Number(cell.dataset.excelRow),
+          column: Number(cell.dataset.excelColumn),
+          cellType: cell.dataset.cellType,
+          value: cell.textContent || '',
+        }))
+        if (!edits.length) return
+        saveButton.disabled = true
+        saveButton.textContent = '저장 중…'
+        try {
+          await apiRequest(`/api/files/${file.id}/spreadsheet`, { method: 'PUT', body: JSON.stringify({ edits }) })
+          viewport.querySelectorAll('td.is-edited').forEach((cell) => {
+            cell.dataset.originalValue = cell.textContent
+            cell.classList.remove('is-edited')
+          })
+          const preview = document.querySelector('.xlsx-preview-modal')
+          if (preview) preview.dataset.unsaved = 'false'
+          status.textContent = `${edits.length}개 셀 변경 내용을 저장했습니다. ${status.textContent}`
+          toast('엑셀 수정 내용을 저장했습니다.')
+        } catch (error) {
+          showRequestError(error)
+          status.textContent = '저장하지 못했습니다. 내용을 확인하고 다시 시도해 주세요.'
+        } finally {
+          saveButton.textContent = '변경 내용 저장'
+          saveButton.disabled = viewport.querySelector('td.is-edited') == null
+        }
+      })
     } catch (error) {
       status.textContent = `${error.message || '미리보기를 표시하지 못했습니다.'} 원본 파일은 아래에서 다운로드할 수 있습니다.`
       fallback.hidden = false
@@ -293,21 +466,6 @@
         downloadLink.href = `/api/files/${file.id}/download`
         downloadLink.textContent = '다운로드'
         actionCell.append(downloadLink)
-        if (isAdmin()) {
-          const deleteButton = document.createElement('button')
-          deleteButton.type = 'button'
-          deleteButton.className = 'completed-details-button'
-          deleteButton.textContent = '삭제'
-          deleteButton.addEventListener('click', async () => {
-            if (!window.confirm(`${file.originalName} 파일을 삭제할까요?`)) return
-            try {
-              await apiRequest(`/api/files/${file.id}`, { method: 'DELETE' })
-              await loadFolderFiles()
-              toast('파일을 삭제했습니다.')
-            } catch (error) { showRequestError(error) }
-          })
-          actionCell.append(deleteButton)
-        }
         tbody.append(row)
       })
     } catch (error) {
@@ -330,9 +488,9 @@
 
   const showRequestError = (error) => {
     if (error.status === 401) {
-      toast('요청 권한이 없습니다. 관리자 기능은 관리자 로그인이 필요합니다.')
+      toast('이 작업은 인증이 필요합니다.')
     } else if (error.status === 403) {
-      toast('관리자 전용 기능입니다. 관리자 로그인 후 이용해 주세요.')
+      toast('이 기능을 사용할 권한이 없습니다.')
     } else {
       toast(error.message || '요청 처리 중 오류가 발생했습니다.')
     }
@@ -479,15 +637,15 @@
 
   const loadWorkspaceData = async () => {
     try {
-      authState.user = await apiRequest('/api/auth/me')
-    } catch {
-      authState.user = null
-    }
-    try {
-      const setting = await apiRequest('/api/settings/dashboard-title')
+      const [setting, hazardLabelSetting] = await Promise.all([
+        apiRequest('/api/settings/dashboard-title'),
+        apiRequest('/api/settings/hazard-risk-label'),
+      ])
       dashboardTitle = setting.title || defaultDashboardTitle
+      hazardRiskLabel = hazardLabelSetting.label || defaultHazardRiskLabel
       document.querySelector('#page-title').textContent = dashboardTitle
       document.title = `안전온 | ${dashboardTitle}`
+      applyHazardRiskLabel()
     } catch { /* Keep the default label if settings cannot be loaded. */ }
     updateAccessUi()
     try {
@@ -498,49 +656,6 @@
       showRequestError(error)
     }
   }
-
-  const loginButton = document.querySelector('#manager-auth-button')
-  loginButton?.addEventListener('click', () => {
-    if (authState.user) {
-      const content = document.createElement('div')
-      content.textContent = `${authState.user.displayName} 계정에서 로그아웃할까요?`
-      showModal('로그아웃', '로그아웃하면 다시 로그인해야 합니다.', content, '로그아웃', async () => {
-        try {
-          await apiRequest('/api/auth/logout', { method: 'POST' })
-          authState.user = null
-          authState.csrfToken = ''
-          closeModal()
-          updateAccessUi()
-          await loadHighRiskItems()
-          if (activeFolderScope) await loadFolderFiles()
-          if (!document.querySelector('#completed-list-content')?.hidden) await loadCompletedItems()
-          toast('관리자 로그아웃했습니다. 일반 기능은 계속 사용할 수 있습니다.')
-        } catch (error) { showRequestError(error) }
-      })
-      return
-    }
-    const content = document.createElement('div')
-    const username = document.createElement('input')
-    username.autocomplete = 'username'
-    username.placeholder = '아이디'
-    const password = document.createElement('input')
-    password.type = 'password'
-    password.autocomplete = 'current-password'
-    password.placeholder = '비밀번호'
-    content.append(field('아이디', username), field('비밀번호', password))
-    showModal('관리자 로그인', '사용자 관리와 파일 삭제를 위한 관리자 인증입니다. 파일 조회·업로드와 개선 상태 관리는 로그인 없이 이용할 수 있습니다.', content, '관리자 로그인', async (backdrop) => {
-      try {
-        const user = await apiRequest('/api/auth/login', { method: 'POST', body: JSON.stringify({ username: username.value.trim(), password: password.value }) })
-        authState.user = user
-        updateAccessUi()
-        closeModal()
-        await loadHighRiskItems()
-        if (activeFolderScope) await loadFolderFiles()
-        if (!document.querySelector('#completed-list-content')?.hidden) await loadCompletedItems()
-        toast(`${user.displayName}님, 로그인했습니다.`)
-      } catch (error) { showRequestError(error) }
-    })
-  })
 
   document.querySelector('#edit-dashboard-title-button')?.addEventListener('click', () => {
     const input = document.createElement('input')
@@ -878,6 +993,11 @@
 
   document.querySelectorAll('[data-tree-toggle]').forEach((toggle) => {
     toggle.addEventListener('click', () => {
+      if (toggle.dataset.assessmentType) {
+        showAssessmentHub(toggle.dataset.assessmentYear, toggle.dataset.assessmentType)
+        if (window.innerWidth <= 660) document.querySelector('#sidebar')?.classList.remove('mobile-open')
+        return
+      }
       const expanded = toggle.getAttribute('aria-expanded') === 'true'
       const panel = document.getElementById(toggle.getAttribute('aria-controls'))
       toggle.setAttribute('aria-expanded', String(!expanded))
@@ -904,14 +1024,39 @@
     })
   })
 
+  document.querySelector('#edit-hazard-risk-label-button')?.addEventListener('click', () => {
+    const input = document.createElement('input')
+    input.type = 'text'
+    input.maxLength = 120
+    input.value = hazardRiskLabel
+    input.autocomplete = 'off'
+    const content = document.createElement('div')
+    content.append(field('분류 레이블', input, '사이드바와 정기 평가 분류 페이지에 함께 적용됩니다.'))
+    showModal('유해·위험요인 레이블 편집', '분류 페이지 상단과 대시보드 분류 이름을 변경합니다.', content, '저장', async () => {
+      const label = input.value.trim()
+      if (!label) { toast('레이블 이름을 입력해 주세요.'); return }
+      try {
+        const updated = await apiRequest('/api/settings/hazard-risk-label', { method: 'PUT', body: JSON.stringify({ title: label }) })
+        hazardRiskLabel = updated.label
+        applyHazardRiskLabel()
+        if (!document.querySelector('#assessment-hub-view').hidden) showAssessmentHub(currentAssessmentYear, currentAssessmentType)
+        else if (!document.querySelector('#assessment-subcategory-view').hidden) showAssessmentSubcategory(currentSubcategory)
+        else if (activeFolderScope?.category === 'HAZARD_RISK') {
+          document.querySelector('#page-title').textContent = hazardRiskLabel
+          document.querySelector('#folder-category-label').textContent = hazardRiskLabel
+          document.querySelector('#folder-path').textContent = document.querySelector('#folder-path').textContent.replace(defaultHazardRiskLabel, hazardRiskLabel)
+        }
+        closeModal()
+        toast('분류 레이블을 저장했습니다.')
+      } catch (error) { showRequestError(error) }
+    })
+  })
+
+  document.querySelector('#assessment-hub-back-button')?.addEventListener('click', showDashboardPage)
+  document.querySelector('#subcategory-back-button')?.addEventListener('click', () => showAssessmentHub(currentAssessmentYear, currentAssessmentType))
   document.querySelector('#folder-back-button')?.addEventListener('click', () => {
-    document.querySelector('#team-folder-view').hidden = true
-    document.querySelector('#dashboard-sections').hidden = false
-    document.querySelector('#page-title').textContent = dashboardTitle
-    document.querySelector('#edit-dashboard-title-button').hidden = false
-    document.querySelector('#page-subtitle').textContent = '작업현장의 유해·위험요인과 개선 진행 상황을 확인하세요.'
-    document.querySelector('#breadcrumb-selection').textContent = '유해위험요인'
-    activeFolderScope = null
+    if (folderReturnMode === 'subcategory') showAssessmentSubcategory(currentSubcategory)
+    else showDashboardPage()
   })
 
   const folderUploadInput = document.querySelector('#team-folder-file-input')
@@ -932,31 +1077,6 @@
       await loadFolderFiles()
       toast(`${result.files.length}개 파일을 저장했습니다.`)
     } catch (error) { folderUploadInput.value = ''; showRequestError(error) }
-  })
-
-  document.querySelector('#user-admin-button')?.addEventListener('click', async () => {
-    if (!isAdmin()) return
-    try {
-      const users = await apiRequest('/api/admin/users')
-      const content = document.createElement('div')
-      const username = document.createElement('input'); username.autocomplete = 'off'; username.placeholder = '아이디'
-      const displayName = document.createElement('input'); displayName.placeholder = '표시 이름'
-      const password = document.createElement('input'); password.type = 'password'; password.autocomplete = 'new-password'; password.placeholder = '임시 비밀번호 (12자 이상)'
-      const role = document.createElement('select')
-      role.innerHTML = '<option value="FIELD">현장 조회</option><option value="MANAGER">평가 담당자</option><option value="ADMIN">관리자</option>'
-      const userList = document.createElement('ul'); userList.className = 'admin-user-list'
-      users.forEach(user => { const entry = document.createElement('li'); entry.textContent = `${user.displayName} (${user.username}) · ${user.role}`; userList.append(entry) })
-      const fields = document.createElement('div'); fields.className = 'admin-user-form'
-      fields.append(field('아이디', username), field('이름', displayName), field('임시 비밀번호', password), field('권한', role))
-      const help = document.createElement('p'); help.className = 'admin-user-help'; help.textContent = '현장 조회자는 열람, 평가 담당자는 파일 등록·상태 변경, 관리자는 사용자 및 파일 관리를 할 수 있습니다.'
-      content.append(help, fields, userList)
-      showModal('사용자 관리', '관리자만 계정과 권한을 관리할 수 있습니다.', content, '계정 추가', async () => {
-        try {
-          await apiRequest('/api/admin/users', { method: 'POST', body: JSON.stringify({ username: username.value.trim(), displayName: displayName.value.trim(), password: password.value, role: role.value }) })
-          closeModal(); toast('사용자를 추가했습니다.')
-        } catch (error) { showRequestError(error) }
-      })
-    } catch (error) { showRequestError(error) }
   })
 
   document.querySelector('#export-button')?.addEventListener('click', () => toast('연도별 엑셀 내보내기는 데이터 기능 연동 후 제공됩니다.'))

@@ -90,6 +90,12 @@ public class StoredFile {
     public String getStoredName() { return storedName; }
     public String getContentType() { return contentType; }
     public Long getFileSize() { return fileSize; }
+    public void updateContentMetadata(String contentType, long fileSize, String uploadedBy) {
+        this.contentType = contentType;
+        this.fileSize = fileSize;
+        this.uploadedBy = uploadedBy;
+        this.uploadedAt = LocalDateTime.now();
+    }
     public String getUploadedBy() { return uploadedBy; }
     public LocalDateTime getUploadedAt() { return uploadedAt; }
 }

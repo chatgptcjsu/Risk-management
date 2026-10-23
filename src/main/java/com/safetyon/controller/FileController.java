@@ -1,6 +1,7 @@
 package com.safetyon.controller;
 
 import com.safetyon.model.ApiDtos.FileMetadataDto;
+import com.safetyon.model.ApiDtos.SpreadsheetEditRequest;
 import com.safetyon.model.ApiDtos.UploadResponse;
 import com.safetyon.model.AssessmentType;
 import com.safetyon.model.FileCategory;
@@ -19,6 +20,8 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -62,6 +65,13 @@ public class FileController {
         String uploadedBy = actorName(authentication);
         List<StoredFile> saved = storage.store(year, assessmentType, category, team, process, files, uploadedBy);
         return new UploadResponse(saved.stream().map(this::toDto).toList());
+    }
+
+    @PutMapping(value = "/{id}/spreadsheet", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public FileMetadataDto updateSpreadsheet(@PathVariable long id,
+                                             @jakarta.validation.Valid @RequestBody SpreadsheetEditRequest request,
+                                             Authentication authentication) {
+        return toDto(storage.updateSpreadsheetCells(id, request.edits(), actorName(authentication)));
     }
 
     @GetMapping("/{id}/download")

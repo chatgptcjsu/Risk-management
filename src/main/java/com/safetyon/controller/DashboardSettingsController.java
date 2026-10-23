@@ -18,6 +18,8 @@ import java.util.Map;
 public class DashboardSettingsController {
     private static final String TITLE_KEY = "dashboard-title";
     private static final String DEFAULT_TITLE = "유해위험요인";
+    private static final String HAZARD_LABEL_KEY = "hazard-risk-label";
+    private static final String DEFAULT_HAZARD_LABEL = "유해∙위험요인";
 
     private final DashboardSettingRepository settings;
 
@@ -42,6 +44,25 @@ public class DashboardSettingsController {
         setting.setValue(title);
         settings.save(setting);
         return Map.of("title", title);
+    }
+
+    @GetMapping("/hazard-risk-label")
+    public Map<String, String> getHazardRiskLabel() {
+        String label = settings.findById(HAZARD_LABEL_KEY)
+                .map(DashboardSetting::getValue)
+                .filter(value -> !value.isBlank())
+                .orElse(DEFAULT_HAZARD_LABEL);
+        return Map.of("label", label);
+    }
+
+    @PutMapping("/hazard-risk-label")
+    public Map<String, String> updateHazardRiskLabel(@Valid @RequestBody DashboardTitleRequest request) {
+        String label = request.title().trim();
+        DashboardSetting setting = settings.findById(HAZARD_LABEL_KEY)
+                .orElseGet(() -> new DashboardSetting(HAZARD_LABEL_KEY, label));
+        setting.setValue(label);
+        settings.save(setting);
+        return Map.of("label", label);
     }
 
     public record DashboardTitleRequest(@NotBlank @Size(max = 120) String title) {}

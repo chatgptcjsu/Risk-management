@@ -404,7 +404,34 @@ h1, h2, h3, p { margin-top: 0; }
 .page-footer > span:last-child { display: flex; align-items: center; gap: 9px; }
 .page-footer a:hover { color: #418e7c; }
 .page-footer i { width: 2px; height: 2px; border-radius: 50%; background: #b8c2c6; }
-#dashboard-sections[hidden], .team-folder-page[hidden] { display: none !important; }
+#dashboard-sections[hidden], .assessment-hub-page[hidden], .assessment-subcategory-page[hidden], .team-folder-page[hidden] { display: none !important; }
+.assessment-hub-page, .assessment-subcategory-page { min-height: 360px; padding: 0 0 22px; }
+.assessment-hub-toolbar { display: flex; justify-content: flex-start; padding: 15px 18px; border-bottom: 1px solid #edf1f2; }
+.assessment-hub-heading { padding: 24px 24px 18px; }
+.assessment-hub-heading h2 { margin: 0; color: #28424d; font-size: 18px; font-weight: 800; }
+.assessment-hub-heading p { margin: 7px 0 0; color: #84959c; font-size: 10px; }
+.assessment-hub-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; padding: 0 24px; }
+.assessment-category-card { display: flex; align-items: center; gap: 14px; min-height: 106px; padding: 17px; border: 1px solid #e4ece9; border-radius: 11px; background: #fff; color: #526a70; text-align: left; cursor: pointer; transition: border-color .15s, background .15s, transform .15s; }
+.assessment-category-card:hover { border-color: #9bcebd; background: #f8fcfa; transform: translateY(-1px); }
+.assessment-category-icon { display: grid; width: 46px; height: 46px; flex: 0 0 auto; place-items: center; border-radius: 12px; font-size: 10px; font-weight: 900; }
+.assessment-category-icon.excel { background: #e9f6ee; color: #278354; }
+.assessment-category-icon.presentation { background: #fff2e9; color: #b56e3e; }
+.assessment-category-copy { display: grid; flex: 1; gap: 6px; }
+.assessment-category-copy strong { color: #2f4b54; font-size: 12px; font-weight: 800; }
+.assessment-category-copy small { color: #94a2a7; font-size: 9px; }
+.assessment-category-arrow { color: #91aaa4; font-size: 24px; }
+.subcategory-label-row { display: flex; align-items: center; gap: 6px; min-height: 21px; margin-bottom: 5px; }
+.subcategory-label-row .folder-eyebrow { margin: 0; }
+.subcategory-label-edit { display: grid; width: 21px; height: 21px; place-items: center; border: 1px solid transparent; border-radius: 5px; background: transparent; color: #82959a; cursor: pointer; }
+.subcategory-label-edit:hover { border-color: #dbe9e4; background: #f2f8f5; color: #17856f; }
+.subcategory-label-edit svg { width: 12px; height: 12px; }
+.subcategory-label-edit[hidden] { display: none !important; }
+.subcategory-team-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 11px; padding: 0 24px; }
+.subcategory-team-card { overflow: hidden; border: 1px solid #e6edef; border-radius: 9px; background: #fff; }
+.subcategory-team-open { width: 100%; padding: 13px 14px; border: 0; border-bottom: 1px solid #edf1f2; background: #fbfdfc; color: #3f5d62; font-size: 10px; font-weight: 800; text-align: left; cursor: pointer; }
+.subcategory-team-open:hover, .subcategory-process-open:hover { background: #eef8f4; color: #187d6b; }
+.subcategory-process-list { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 12px; }
+.subcategory-process-open { padding: 6px 10px; border: 1px solid #e4ece9; border-radius: 6px; background: #fff; color: #657a80; font-size: 9px; cursor: pointer; }
 .team-folder-page { min-height: 360px; overflow: hidden; padding: 0 0 20px; }
 .team-folder-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 15px 18px; border-bottom: 1px solid #edf1f2; }
 .team-folder-toolbar .back-chevron { width: 14px; height: 14px; transform: rotate(90deg); }
@@ -426,6 +453,7 @@ h1, h2, h3, p { margin-top: 0; }
 .xlsx-preview-modal { width: min(1100px, calc(100vw - 32px)); max-height: calc(100vh - 32px); display: flex; flex-direction: column; }
 .xlsx-preview-modal .modal-body { min-height: 0; overflow: auto; }
 .xlsx-preview-content { min-width: 0; }
+.xlsx-preview-actions { display: flex; gap: 7px; }
 .xlsx-preview-status { margin: 0; color: #74878f; font-size: 10px; }
 .xlsx-preview-tabs { display: flex; gap: 5px; overflow-x: auto; padding-bottom: 2px; }
 .xlsx-preview-tab { flex: 0 0 auto; padding: 7px 11px; border: 1px solid #e5ecea; border-radius: 6px; background: #f8faf9; color: #6d7f86; font-size: 9px; cursor: pointer; }
@@ -433,6 +461,9 @@ h1, h2, h3, p { margin-top: 0; }
 .xlsx-preview-table-scroll { max-height: min(62vh, 650px); overflow: auto; border: 1px solid #e8edef; border-radius: 7px; background: #fff; }
 .xlsx-preview-table { width: max-content; min-width: 100%; border-collapse: separate; border-spacing: 0; color: #526770; font-size: 9px; }
 .xlsx-preview-table td { min-width: 90px; max-width: 360px; padding: 7px 9px; border-right: 1px solid #edf1f2; border-bottom: 1px solid #edf1f2; white-space: pre-wrap; overflow-wrap: anywhere; vertical-align: top; }
+.xlsx-preview-table td[contenteditable="true"] { cursor: text; }
+.xlsx-preview-table td[contenteditable="true"]:focus { outline: 2px solid #78bda7; outline-offset: -2px; background: #fbfffd; }
+.xlsx-preview-table td.is-edited { background: #fff8e7; box-shadow: inset 0 0 0 1px #ecc76b; }
 .xlsx-preview-table tr:first-child td { position: sticky; top: 0; z-index: 1; background: #f2f8f5; color: #375a51; font-weight: 800; }
 .xlsx-preview-download { justify-self: start; }
 .file-download-button { display: inline-flex; align-items: center; text-decoration: none; }
@@ -484,6 +515,18 @@ h1, h2, h3, p { margin-top: 0; }
   .topbar { padding-right: 45px; padding-left: 45px; }
   .welcome-banner { min-height: 184px; }
 }
+@media print {
+  body * { visibility: hidden !important; }
+  .modal-backdrop, .modal-backdrop * { visibility: visible !important; }
+  .modal-backdrop { position: absolute !important; inset: 0 !important; display: block !important; padding: 0 !important; background: #fff !important; backdrop-filter: none !important; }
+  .xlsx-preview-modal { position: absolute !important; top: 0 !important; left: 0 !important; width: 100% !important; max-height: none !important; overflow: visible !important; border: 0 !important; box-shadow: none !important; }
+  .xlsx-preview-modal .modal-close, .xlsx-preview-modal .modal-foot, .xlsx-preview-actions, .xlsx-preview-tabs, .xlsx-preview-download { display: none !important; }
+  .xlsx-preview-modal .modal-body { display: block !important; max-height: none !important; overflow: visible !important; padding: 8px 0 !important; }
+  .xlsx-preview-table-scroll { max-height: none !important; overflow: visible !important; border: 0 !important; }
+  .xlsx-preview-table { width: 100% !important; font-size: 7pt !important; }
+  .xlsx-preview-table td { max-width: none !important; min-width: 0 !important; padding: 3px 4px !important; }
+}
+
 @media (max-width: 1200px) {
   .sidebar { width: 244px; }
   .main-area { margin-left: 244px; }
@@ -598,7 +641,10 @@ h1, h2, h3, p { margin-top: 0; }
   .improvements-heading { align-items: flex-start; flex-direction: column; }
   .completed-heading { align-items: flex-start; flex-direction: column; }
   .team-folder-heading { padding: 18px 14px 14px; }
-  .team-folder-toolbar { padding-right: 12px; padding-left: 12px; }
+  .team-folder-toolbar, .assessment-hub-toolbar { padding-right: 12px; padding-left: 12px; }
+  .assessment-hub-grid, .subcategory-team-grid { grid-template-columns: 1fr; padding-right: 14px; padding-left: 14px; }
+  .assessment-hub-heading { padding: 20px 14px 15px; }
+  .assessment-category-card { min-height: 84px; padding: 13px; }
   .team-folder-summary { padding-right: 12px; padding-left: 12px; }
   .folder-files-table th:first-child, .folder-files-table td:first-child { padding-left: 12px; }
   .admin-user-form { grid-template-columns: 1fr; }
