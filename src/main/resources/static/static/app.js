@@ -345,9 +345,6 @@
     const severity = document.createElement('select')
     severity.innerHTML = '<option value="1">1 · 영향 없음</option><option value="2">2 · 경미한 재해</option><option value="3">3 · 경중한 재해</option><option value="4">4 · 중대 재해</option>'
     severity.value = '2'
-    const assessmentDate = document.createElement('input')
-    assessmentDate.type = 'date'
-    assessmentDate.value = new Date().toISOString().slice(0, 10)
     const note = document.createElement('textarea')
     note.maxLength = 2000
     const score = document.createElement('strong')
@@ -366,13 +363,18 @@
     const scoreBox = document.createElement('div')
     scoreBox.className = 'risk-score-preview-row'
     scoreBox.append(score)
-    content.append(field('부서 / 팀', team), field('공정', process), field('작업내용', workContent), field('유해·위험요인 및 재해형태', hazard), field('현재 상태 및 조치', currentState), scoreRow, scoreBox, field('평가일', assessmentDate), field('비고', note))
+    const evaluationSummary = document.createElement('div')
+    evaluationSummary.className = 'assessment-meta-summary'
+    evaluationSummary.textContent = `평가일시 ${context.assessmentAt.replace('T', ' ')} · 평가자 ${context.evaluator} · 참여자 ${context.participants}`
+    content.append(evaluationSummary, field('부서 / 팀', team), field('공정', process), field('작업내용', workContent), field('유해·위험요인 및 재해형태', hazard), field('현재 상태 및 조치', currentState), scoreRow, scoreBox, field('비고', note))
     updateWorkflowPage('유해위험요인 작성', `${context.year}년 정기 위험성평가 · ${context.team}${context.process ? ` · ${context.process}` : ''}`, content, '위험도 계산 및 저장', async () => {
       if (!workContent.value.trim() || !hazard.value.trim()) { toast('작업내용과 유해·위험요인을 입력해 주세요.'); return }
       const payload = {
         year: context.year, team: context.team, process: context.process,
+        assessmentAt: context.assessmentAt, evaluator: context.evaluator, participants: context.participants,
+        assessmentReason: context.assessmentReason || null,
         workContent: workContent.value.trim(), hazardEvent: hazard.value.trim(), currentState: currentState.value.trim(),
-        frequency: Number(frequency.value), severity: Number(severity.value), assessmentDate: assessmentDate.value,
+        frequency: Number(frequency.value), severity: Number(severity.value),
         note: note.value.trim(),
       }
       try {
@@ -457,7 +459,10 @@
     const afterRow = document.createElement('div')
     afterRow.className = 'form-row'
     afterRow.append(field('개선 후 빈도 (선택)', afterFrequency), field('개선 후 강도 (선택)', afterSeverity))
-    content.append(field('부서 / 팀', team), field('공정', process), field('작업내용', workContent), field('위험요인 및 재해형태', hazard), field('현재 상태 및 조치', currentState), field('개선(예방)대책', action), riskRow, scoreBox, afterRow, field('개선 예정일', date), field('담당자', assignee), field('비고', note))
+    const evaluationSummary = document.createElement('div')
+    evaluationSummary.className = 'assessment-meta-summary'
+    evaluationSummary.textContent = `평가일시 ${context.assessmentAt.replace('T', ' ')} · 평가자 ${context.evaluator} · 참여자 ${context.participants}${context.assessmentReason ? ` · 사유 ${context.assessmentReason}` : ''}`
+    content.append(evaluationSummary, field('부서 / 팀', team), field('공정', process), field('작업내용', workContent), field('위험요인 및 재해형태', hazard), field('현재 상태 및 조치', currentState), field('개선(예방)대책', action), riskRow, scoreBox, afterRow, field('개선 예정일', date), field('담당자', assignee), field('비고', note))
     updateWorkflowPage('개선요청 작성', context.assessmentType === 'AD_HOC' ? '수시 위험성평가는 위험요인 시트를 거치지 않고 개선요청을 작성합니다.' : '위험도 8 이상 항목에 대한 개선·예방 대책을 작성하세요.', content, '개선요청 등록', async () => {
       if (!team.value || !hazard.value.trim() || !action.value.trim()) { toast('부서·팀, 위험요인, 개선대책을 입력해 주세요.'); return }
       if (context.assessmentType === 'REGULAR' && beforeScore < 8) { toast('정기 위험성평가 개선요청은 위험도 8 이상만 등록할 수 있습니다.'); return }
@@ -468,12 +473,14 @@
           method: 'POST',
           body: JSON.stringify({
             year: context.year, assessmentType: context.assessmentType, team: team.value, process: process.value,
+            assessmentAt: context.assessmentAt, evaluator: context.evaluator, participants: context.participants,
+            assessmentReason: context.assessmentReason || null,
             workContent: workContent.value.trim(), currentState: currentState.value.trim(), hazardEvent: hazard.value.trim(),
             improvementAction: action.value.trim(), frequency: Number(frequency.value), severity: Number(severity.value),
             afterFrequency: afterFrequency.value ? Number(afterFrequency.value) : null,
             afterSeverity: afterSeverity.value ? Number(afterSeverity.value) : null,
             plannedDate: date.value || null, assignee: assignee.value.trim(),
-            note: note.value.trim() || (context.reason ? `수시 평가 사유: ${context.reason}` : ''),
+            note: note.value.trim() || (context.assessmentReason ? `수시 평가 사유: ${context.assessmentReason}` : ''),
             sourceHazardFileId: context.fileId || null,
           }),
         })
@@ -491,17 +498,28 @@
     const team = document.createElement('select')
     const process = document.createElement('select')
     makeTeamProcessSelectors(team, process)
+    const assessmentAt = document.createElement('input')
+    assessmentAt.type = 'datetime-local'
+    assessmentAt.value = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)
+    const evaluator = document.createElement('input')
+    evaluator.maxLength = 120
+    evaluator.placeholder = '평가를 진행한 담당자 이름'
+    const participants = document.createElement('textarea')
+    participants.maxLength = 1000
+    participants.placeholder = '팀장, 관리감독자, 근로자 등 참여자 이름을 입력하세요.'
     const reason = document.createElement('select')
     reason.innerHTML = '<option value="">수시 평가 사유 선택</option><option>사고 발생</option><option>공정 변경</option><option>신규 공정·설비 추가</option><option>정비·보수</option><option>작업방법 변경</option><option>기타</option>'
     const reasonField = field('수시 평가 사유', reason)
     reasonField.hidden = true
     assessmentType.addEventListener('change', () => { reasonField.hidden = assessmentType.value !== 'AD_HOC' })
-    content.append(field('평가 유형', assessmentType), field('부서 / 팀', team), field('공정', process), reasonField)
-    showModal('위험성평가 실시', '평가 유형과 부서·팀, 공정을 선택하세요.', content, '다음', (backdrop) => {
+    content.append(field('평가 유형', assessmentType), field('부서 / 팀', team), field('공정', process), field('평가일시', assessmentAt), field('평가자', evaluator), field('위험성평가 참여자', participants), reasonField)
+    showModal('위험성평가 실시', '평가일시와 참여자를 입력하고 부서·팀, 공정을 선택하세요.', content, '다음', (backdrop) => {
       if (!team.value) { toast('부서 / 팀을 선택해 주세요.'); return }
       if ((teamProcesses[team.value] || []).length && !process.value) { toast('평가할 공정을 선택해 주세요.'); return }
+      if (!assessmentAt.value || !evaluator.value.trim() || !participants.value.trim()) { toast('평가일시, 평가자, 위험성평가 참여자를 입력해 주세요.'); return }
       if (assessmentType.value === 'AD_HOC' && !reason.value) { toast('수시 평가 사유를 선택해 주세요.'); return }
-      const context = { year: currentYear, assessmentType: assessmentType.value, team: team.value, process: process.value, reason: reason.value }
+      const context = { year: currentYear, assessmentType: assessmentType.value, team: team.value, process: process.value,
+        assessmentAt: assessmentAt.value, evaluator: evaluator.value.trim(), participants: participants.value.trim(), assessmentReason: reason.value }
       backdrop.remove()
       if (assessmentType.value === 'REGULAR') showHazardEntryPage(context)
       else showImprovementRequestPage(context)
@@ -945,6 +963,8 @@
       ['개선 전 위험요인 / 재해형태', item.hazardEvent],
       ['개선(예방)대책', item.improvementAction],
       ['평가 및 담당', `${item.year}년 · ${item.assessmentType === 'REGULAR' ? '정기' : '수시'} · ${item.team}${item.process ? ` · ${item.process}` : ''} · 빈도 ${item.frequency} × 강도 ${item.severity} = ${item.riskScore}`],
+      ['평가일시 / 평가자', `${item.assessmentAt ? item.assessmentAt.replace('T', ' ') : '—'} · ${item.evaluator || '—'}`],
+      ['위험성평가 참여자 / 수시 사유', `${item.participants || '—'}${item.assessmentReason ? ` · ${item.assessmentReason}` : ''}`],
       ['예정일 / 완료일', `${formatDate(item.plannedDate)} / ${formatDate(item.completedDate)}`],
     ]
     rows.forEach(([title, value]) => {

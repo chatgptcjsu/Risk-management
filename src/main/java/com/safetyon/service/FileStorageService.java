@@ -235,7 +235,11 @@ public class FileStorageService {
                 setTextCell(row, 9, riskScore >= 8 ? "개선요청 작성 필요" : "");
                 setTextCell(row, 14, clean(request.note()));
                 Row assessmentHeader = sheet.getRow(5);
-                if (assessmentHeader != null) setTextCell(assessmentHeader, 3, request.assessmentDate().toString());
+                if (assessmentHeader != null) {
+                    String assessedAt = request.assessmentAt().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
+                    setTextCell(assessmentHeader, 3, assessedAt);
+                    setTextCell(assessmentHeader, 5, "평가자: " + request.evaluator().trim() + "\n위험성평가 참여자: " + request.participants().trim());
+                }
                 Row teamHeader = sheet.getRow(2);
                 if (teamHeader != null) setTextCell(teamHeader, 0, team + " · " + process);
                 Row processHeader = sheet.getRow(4);

@@ -435,6 +435,7 @@ h1, h2, h3, p { margin-top: 0; }
 .team-process-empty { margin: 0 24px; padding: 20px; border: 1px dashed #d8e6e1; border-radius: 8px; color: #89999f; font-size: 10px; text-align: center; }
 .team-process-empty[hidden] { display: none !important; }
 .workflow-content { padding: 0 24px; }
+.assessment-meta-summary { grid-column: 1 / -1; padding: 10px 12px; border: 1px solid #e2eee9; border-radius: 7px; background: #f5faf7; color: #557068; font-size: 10px; line-height: 1.5; }
 .workflow-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; }
 .workflow-form-grid .form-field { min-width: 0; }
 .workflow-form-grid .form-field:has(textarea) { grid-column: 1 / -1; }
@@ -501,15 +502,16 @@ h1, h2, h3, p { margin-top: 0; }
 .toast svg { width: 17px; height: 17px; color: #26a084; }
 @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 .modal-backdrop { position: fixed; z-index: 50; inset: 0; display: grid; place-items: center; padding: 20px; background: rgba(15,37,46,.38); backdrop-filter: blur(3px); }
-.modal-card { width: min(500px, 100%); overflow: hidden; border: 1px solid #e7edef; border-radius: 14px; background: #fff; box-shadow: 0 25px 80px rgba(10,34,43,.25); animation: modal-in .18s ease-out; }
+.modal-card { width: min(500px, 100%); max-height: calc(100vh - 40px); display: flex; flex-direction: column; overflow: hidden; border: 1px solid #e7edef; border-radius: 14px; background: #fff; box-shadow: 0 25px 80px rgba(10,34,43,.25); animation: modal-in .18s ease-out; }
 @keyframes modal-in { from { opacity: 0; transform: translateY(8px) scale(.99); } to { opacity: 1; transform: translateY(0) scale(1); } }
 .modal-head { display: flex; align-items: flex-start; justify-content: space-between; padding: 21px 23px 16px; border-bottom: 1px solid #eef2f3; }
 .modal-head h2 { margin: 0; color: #263e4a; font-size: 17px; font-weight: 800; }
 .modal-head p { margin: 6px 0 0; color: #8a9aa1; font-size: 10px; }
 .modal-close { display: grid; width: 30px; height: 30px; place-items: center; border: 0; border-radius: 7px; background: #f5f7f7; color: #71828a; }
 .modal-close svg { width: 16px; height: 16px; }
-.modal-body { display: grid; gap: 14px; padding: 19px 23px 22px; }
+.modal-body { display: grid; min-height: 0; gap: 14px; overflow-y: auto; padding: 19px 23px 22px; }
 .form-field { display: grid; gap: 6px; }
+.form-field[hidden] { display: none !important; }
 .form-field label { color: #52666f; font-size: 10px; font-weight: 700; }
 .form-field input, .form-field select, .form-field textarea { width: 100%; min-height: 37px; padding: 8px 10px; border: 1px solid #e4eaec; border-radius: 6px; outline: 0; background: #fff; color: #344b56; font-size: 10px; }
 .form-field textarea { min-height: 65px; resize: vertical; }

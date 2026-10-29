@@ -39,6 +39,18 @@ public class ImprovementItem {
     @Column(length = 120)
     private String process;
 
+    @Column(name = "assessment_at")
+    private LocalDateTime assessmentAt;
+
+    @Column(length = 120)
+    private String evaluator;
+
+    @Column(name = "participants", columnDefinition = "TEXT")
+    private String participants;
+
+    @Column(name = "assessment_reason", length = 240)
+    private String assessmentReason;
+
     @Column(name = "work_content", columnDefinition = "TEXT")
     private String workContent;
 
@@ -100,6 +112,7 @@ public class ImprovementItem {
     protected ImprovementItem() {}
 
     public ImprovementItem(int year, AssessmentType assessmentType, String team, String process,
+                           LocalDateTime assessmentAt, String evaluator, String participants, String assessmentReason,
                            String workContent, String currentState, String hazardEvent, String improvementAction,
                            int frequency, int severity, Integer afterFrequency, Integer afterSeverity,
                            LocalDate plannedDate, String assignee, String note, Long sourceHazardFileId, String createdBy) {
@@ -107,6 +120,10 @@ public class ImprovementItem {
         this.assessmentType = assessmentType;
         this.team = team;
         this.process = process;
+        this.assessmentAt = assessmentAt;
+        this.evaluator = evaluator;
+        this.participants = participants;
+        this.assessmentReason = assessmentReason;
         this.workContent = workContent;
         this.currentState = currentState;
         this.hazardEvent = hazardEvent;
@@ -144,6 +161,10 @@ public class ImprovementItem {
     public AssessmentType getAssessmentType() { return assessmentType; }
     public String getTeam() { return team; }
     public String getProcess() { return process; }
+    public LocalDateTime getAssessmentAt() { return assessmentAt; }
+    public String getEvaluator() { return evaluator; }
+    public String getParticipants() { return participants; }
+    public String getAssessmentReason() { return assessmentReason; }
     public String getWorkContent() { return workContent; }
     public String getCurrentState() { return currentState; }
     public String getHazardEvent() { return hazardEvent; }

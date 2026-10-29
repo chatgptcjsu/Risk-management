@@ -73,6 +73,8 @@ public class ImprovementService {
         }
         ImprovementItem item = new ImprovementItem(
                 request.year(), request.assessmentType(), request.team().trim(), clean(request.process()),
+                request.assessmentAt() == null ? java.time.LocalDateTime.now() : request.assessmentAt(),
+                clean(request.evaluator()), clean(request.participants()), clean(request.assessmentReason()),
                 clean(request.workContent()), clean(request.currentState()), request.hazardEvent().trim(),
                 request.improvementAction().trim(), request.frequency(), request.severity(),
                 request.afterFrequency(), request.afterSeverity(), request.plannedDate(),
@@ -107,7 +109,8 @@ public class ImprovementService {
 
     private ImprovementItemDto toDto(ImprovementItem item) {
         return new ImprovementItemDto(item.getId(), item.getYear(), item.getAssessmentType(), item.getTeam(),
-                item.getProcess(), item.getWorkContent(), item.getCurrentState(), item.getHazardEvent(),
+                item.getProcess(), item.getAssessmentAt(), item.getEvaluator(), item.getParticipants(), item.getAssessmentReason(),
+                item.getWorkContent(), item.getCurrentState(), item.getHazardEvent(),
                 item.getImprovementAction(), item.getFrequency(), item.getSeverity(), item.getRiskScore(),
                 item.getAfterFrequency(), item.getAfterSeverity(), item.getAfterRiskScore(), item.getNote(),
                 item.getSourceHazardFileId(), item.getStatus(), item.getPlannedDate(), item.getCompletedDate(), item.getAssignee(),

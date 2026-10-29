@@ -5,13 +5,15 @@
 현재 샌드박스는 Java 17 + Spring Boot + MariaDB API를 사용하며, 실제 파일은 서버 로컬 저장소에 저장됩니다.
 
 ## 현재 구현된 화면
-- 유해위험요인 대시보드와 85~115% 크기 조절
+- 유해위험요인 대시보드 (125% 고정)
 - 평가 흐름: 연도 → 정기/수시 → 분류 → 세로형 팀 목록 → 팀별 공정 선택 → 파일
 - 정기 위험성평가 분류 레이블 `유해∙위험요인` 편집 및 MariaDB 공유 저장
 - 팀별 공정 목록을 MariaDB에 공유 저장하고 각 팀에서 공정을 추가
 - 정기: 유해위험요인 XLS/XLSX 및 개선요청 PPT/PPTX 업로드
 - 수시: 개선요청 PPT/PPTX 업로드만 허용
 - 파일 메타데이터 MariaDB 저장, 바이너리 `data/uploads/` 저장, 목록·브라우저 미리보기·다운로드·관리자 삭제
+- 위험성평가 실시 시작 단계에서 평가일시·평가자·위험성평가 참여자를 입력하고, 수시 선택 시 평가 사유를 추가 입력
+- 입력한 평가 메타데이터를 정기 XLSX 및 수시/정기 개선요청 MariaDB 기록에 저장
 - 위험성평가 실시: 팀·공정 선택 후 정기는 유해위험요인 작성, 수시는 위험요인 시트 없이 개선요청 작성
 - 정기 평가는 빈도(1~5) × 강도(1~4)로 위험도를 계산하고 위험요인 행을 공정별 XLSX에 저장; 위험도 8 이상은 개선요청으로 이어짐
 - 수시 위험성평가 개선요청은 부서·팀과 공정을 선택해 바로 등록
@@ -33,7 +35,8 @@
 - `GET /api/settings/dashboard-title`, `PUT /api/settings/dashboard-title` : 대시보드 제목 조회·저장
 - `GET /api/settings/hazard-risk-label`, `PUT /api/settings/hazard-risk-label` : 위험요인 레이블 조회·저장
 - `GET /api/settings/team-processes`, `PUT /api/settings/team-processes` : 팀별 공정 분류 조회·저장
-- `POST /api/files/hazard-assessments` : 정기 위험요인을 점수화하고 해당 팀·공정 XLSX에 기록
+- `POST /api/files/hazard-assessments` : 정기 위험요인을 점수화하고 평가일시·평가자·참여자와 함께 해당 팀·공정 XLSX에 기록
+- `POST /api/improvements` : 평가일시·평가자·참여자·수시 평가 사유를 포함한 개선요청 등록
 - `PUT /api/files/{id}/spreadsheet` : XLS/XLSX 기존 셀 수정 저장 (요청 최대 500셀)
 - `GET/PUT /api/files/{id}/presentation` : PPTX 슬라이드와 표 텍스트 미리보기·수정 저장
 - `PATCH /api/improvements/{id}/status` : 개선요청 상태 요청·진행·완료 변경
