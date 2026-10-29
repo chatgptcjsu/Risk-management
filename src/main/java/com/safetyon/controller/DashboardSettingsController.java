@@ -1,10 +1,16 @@
 package com.safetyon.controller;
 
+import com.safetyon.model.AssessmentType;
 import com.safetyon.model.DashboardSetting;
+import com.safetyon.model.FileCategory;
+import com.safetyon.model.StoredFile;
 import com.safetyon.repository.DashboardSettingRepository;
+import com.safetyon.repository.StoredFileRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -15,15 +21,19 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.validation.annotation.Validated;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.LinkedHashSet;
 
 @RestController
 @RequestMapping("/api/settings")
+@Validated
 public class DashboardSettingsController {
     private static final String TITLE_KEY = "dashboard-title";
     private static final String DEFAULT_TITLE = "유해위험요인";
@@ -31,10 +41,12 @@ public class DashboardSettingsController {
     private static final String DEFAULT_HAZARD_LABEL = "유해∙위험요인";
     private static final String TEAM_PROCESSES_KEY = "team-processes";
     private final DashboardSettingRepository settings;
+    private final StoredFileRepository files;
     private final ObjectMapper objectMapper;
 
-    public DashboardSettingsController(DashboardSettingRepository settings, ObjectMapper objectMapper) {
+    public DashboardSettingsController(DashboardSettingRepository settings, StoredFileRepository files, ObjectMapper objectMapper) {
         this.settings = settings;
+        this.files = files;
         this.objectMapper = objectMapper;
     }
 
@@ -137,6 +149,83 @@ public class DashboardSettingsController {
         return normalized;
     }
 
+    @GetMapping("/department-participation")
+    public DepartmentParticipationResponse getDepartmentParticipation(@org.springframework.web.bind.annotation.RequestParam @Min(2000) @Max(2100) int year) {
+        Map<String, List<String>> teams = settings.findById(TEAM_PROCESSES_KEY)
+                .map(DashboardSetting::getValue)
+                .map(this::parseTeamProcesses)
+                .orElseGet(this::defaultTeamProcesses);
+        Map<String, Integer> goals = readParticipationGoals(year);
+        List<StoredFile> assessments = files.findAllByYearAndAssessmentTypeAndCategoryOrderByUploadedAtDesc(
+                year, AssessmentType.REGULAR, FileCategory.HAZARD_RISK);
+        List<DepartmentParticipationSummary> summaries = new ArrayList<>();
+
+        for (Map.Entry<String, List<String>> entry : teams.entrySet()) {
+            String team = entry.getKey();
+            List<String> processes = entry.getValue();
+            Set<String> completedUnits = new LinkedHashSet<>();
+            for (StoredFile file : assessments) {
+                if (!team.equals(file.getTeam())) continue;
+                String process = file.getProcess() == null ? "" : file.getProcess().trim();
+                if (processes.isEmpty()) {
+                    if (process.isBlank()) completedUnits.add(team);
+                } else if (processes.contains(process)) {
+                    completedUnits.add(process);
+                }
+            }
+            int availableUnits = Math.max(1, processes.size());
+            int targetPercent = goals.getOrDefault(team, 100);
+            int completed = completedUnits.size();
+            int participationPercent = availableUnits == 0 ? 0
+                    : (int) Math.round(completed * 100.0 / availableUnits);
+            summaries.add(new DepartmentParticipationSummary(team, completed, availableUnits,
+                    participationPercent, targetPercent, participationPercent >= targetPercent));
+        }
+        return new DepartmentParticipationResponse(year, summaries);
+    }
+
+    @PutMapping("/department-participation/goals")
+    public DepartmentParticipationResponse updateDepartmentParticipationGoals(@Valid @RequestBody ParticipationGoalsRequest request) {
+        Map<String, List<String>> teams = settings.findById(TEAM_PROCESSES_KEY)
+                .map(DashboardSetting::getValue)
+                .map(this::parseTeamProcesses)
+                .orElseGet(this::defaultTeamProcesses);
+        Map<String, Integer> goals = readParticipationGoals(request.year());
+        for (Map.Entry<String, Integer> entry : request.goals().entrySet()) {
+            String team = entry.getKey() == null ? "" : entry.getKey().trim();
+            Integer goal = entry.getValue();
+            if (!teams.containsKey(team) || goal == null || goal < 1 || goal > 100) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "부서별 목표 참여율은 1~100%로 설정해 주세요.");
+            }
+            goals.put(team, goal);
+        }
+        try {
+            String json = objectMapper.writeValueAsString(goals);
+            String key = participationGoalsKey(request.year());
+            DashboardSetting setting = settings.findById(key).orElseGet(() -> new DashboardSetting(key, json));
+            setting.setValue(json);
+            settings.save(setting);
+        } catch (Exception ex) {
+            throw new IllegalStateException("부서별 참여 목표를 저장하지 못했습니다.", ex);
+        }
+        return getDepartmentParticipation(request.year());
+    }
+
+    private Map<String, Integer> readParticipationGoals(int year) {
+        String key = participationGoalsKey(year);
+        return settings.findById(key).map(DashboardSetting::getValue).map(json -> {
+            try {
+                return objectMapper.readValue(json, new TypeReference<Map<String, Integer>>() {});
+            } catch (Exception ignored) {
+                return new LinkedHashMap<String, Integer>();
+            }
+        }).orElseGet(LinkedHashMap::new);
+    }
+
+    private String participationGoalsKey(int year) {
+        return "participation-goals-" + year;
+    }
+
     private Map<String, List<String>> defaultTeamProcesses() {
         Map<String, List<String>> defaults = new LinkedHashMap<>();
         defaults.put("제지생산1팀", List.of("원질", "초지"));
@@ -153,5 +242,11 @@ public class DashboardSettingsController {
     }
 
     public record TeamProcessesRequest(@NotNull Map<String, List<String>> teams) {}
+    public record ParticipationGoalsRequest(
+            @NotNull @Min(2000) @Max(2100) Integer year,
+            @NotNull @Size(min = 1, max = 50) Map<String, Integer> goals) {}
+    public record DepartmentParticipationResponse(int year, List<DepartmentParticipationSummary> departments) {}
+    public record DepartmentParticipationSummary(String team, int completed, int availableUnits,
+                                                 int participationPercent, int targetPercent, boolean targetMet) {}
     public record DashboardTitleRequest(@NotBlank @Size(max = 120) String title) {}
 }

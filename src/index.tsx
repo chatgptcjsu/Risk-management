@@ -290,6 +290,20 @@ app.get('/', (c) => {
             </article>
           </section>
 
+          <section class="panel participation-panel" id="department-participation" aria-labelledby="participation-title">
+            <div class="panel-heading participation-heading">
+              <div><div class="panel-title-row"><h2 id="participation-title">부서별 위험성평가 참여율</h2><span class="participation-live-label">부서별 현황</span></div><p>등록된 공정 중 선택한 연도에 정기 위험성평가를 작성한 공정의 비율입니다. 목표는 부서별로 설정할 수 있습니다.</p></div>
+              <label class="participation-year-field">평가 연도<select id="participation-year" aria-label="참여율 평가 연도"></select></label>
+            </div>
+            <div class="participation-summary" aria-live="polite">
+              <article><span>전체 참여율</span><strong id="participation-overall">—</strong></article>
+              <article><span>목표 달성 부서</span><strong id="participation-met-goals">—</strong></article>
+              <article><span>참여율 1위</span><strong id="participation-best-team">—</strong></article>
+            </div>
+            <div class="participation-legend"><span><i class="legend-actual"></i>실제 참여율</span><span><i class="legend-target"></i>부서별 목표</span></div>
+            <div class="participation-chart" id="department-participation-chart" aria-live="polite"><p class="participation-empty">부서별 참여율을 불러오는 중입니다.</p></div>
+          </section>
+
           <section class="panel improvements-panel" id="high-risks">
             <div class="panel-heading improvements-heading">
               <div>

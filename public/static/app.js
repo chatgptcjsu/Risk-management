@@ -78,6 +78,177 @@
   }
   let teamProcesses = { ...defaultTeamProcesses }
   let currentTeam = ''
+  let currentParticipationYear = currentYear
+
+  const installDepartmentParticipationPanel = () => {
+    const metrics = document.querySelector('.metrics-grid')
+    if (!document.querySelector('#department-participation') && metrics) {
+      metrics.insertAdjacentHTML('afterend', `
+      <section class="panel participation-panel" id="department-participation" aria-labelledby="participation-title">
+        <div class="panel-heading participation-heading">
+          <div><div class="panel-title-row"><h2 id="participation-title">부서별 위험성평가 참여율</h2><span class="participation-live-label">부서별 현황</span></div><p>등록된 공정 중 선택한 연도에 정기 위험성평가를 작성한 공정의 비율입니다. 목표는 부서별로 설정할 수 있습니다.</p></div>
+          <label class="participation-year-field">평가 연도<select id="participation-year" aria-label="참여율 평가 연도"></select></label>
+        </div>
+        <div class="participation-summary" aria-live="polite">
+          <article><span>전체 참여율</span><strong id="participation-overall">—</strong></article>
+          <article><span>목표 달성 부서</span><strong id="participation-met-goals">—</strong></article>
+          <article><span>참여율 1위</span><strong id="participation-best-team">—</strong></article>
+        </div>
+        <div class="participation-legend"><span><i class="legend-actual"></i>실제 참여율</span><span><i class="legend-target"></i>부서별 목표</span></div>
+        <div class="participation-chart" id="department-participation-chart" aria-live="polite"><p class="participation-empty">부서별 참여율을 불러오는 중입니다.</p></div>
+      </section>`)
+    }
+    const assessmentTree = document.querySelector('#workspace-assessments-content')
+    if (assessmentTree && !assessmentTree.querySelector('.participation-tree-link')) {
+      const link = document.createElement('button')
+      link.type = 'button'
+      link.className = 'tree-selectable participation-tree-link'
+      const marker = document.createElement('span')
+      marker.className = 'tree-process-marker'
+      const label = document.createElement('span')
+      label.textContent = '부서 참여율 · 목표'
+      link.append(marker, label)
+      link.addEventListener('click', () => {
+        showDashboardPage()
+        window.setTimeout(() => document.querySelector('#department-participation')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0)
+        if (window.innerWidth <= 660) document.querySelector('#sidebar')?.classList.remove('mobile-open')
+      })
+      assessmentTree.append(link)
+    }
+    const yearSelect = document.querySelector('#participation-year')
+    if (!yearSelect) return
+    if (!yearSelect.options.length) {
+      for (let year = currentYear; year >= currentYear - 4; year -= 1) {
+        yearSelect.add(new Option(`${year}년`, String(year)))
+      }
+    }
+    yearSelect.value = String(currentParticipationYear)
+    if (yearSelect.dataset.bound !== 'true') {
+      yearSelect.dataset.bound = 'true'
+      yearSelect.addEventListener('change', () => {
+        currentParticipationYear = Number(yearSelect.value)
+        loadDepartmentParticipation(currentParticipationYear)
+      })
+    }
+  }
+
+  const renderDepartmentParticipation = (data) => {
+    const chart = document.querySelector('#department-participation-chart')
+    if (!chart) return
+    const departments = Array.isArray(data.departments) ? data.departments : []
+    if (!departments.length) {
+      chart.innerHTML = '<p class="participation-empty">표시할 부서가 없습니다. 부서 설정을 확인해 주세요.</p>'
+      document.querySelector('#participation-overall').textContent = '0%'
+      document.querySelector('#participation-met-goals').textContent = '0 / 0'
+      document.querySelector('#participation-best-team').textContent = '—'
+      return
+    }
+    const totalCompleted = departments.reduce((sum, department) => sum + Number(department.completed || 0), 0)
+    const totalUnits = departments.reduce((sum, department) => sum + Number(department.availableUnits || 0), 0)
+    const metGoals = departments.filter(department => department.targetMet).length
+    const bestDepartment = [...departments].sort((a, b) => b.participationPercent - a.participationPercent || a.team.localeCompare(b.team, 'ko'))[0]
+    document.querySelector('#participation-overall').textContent = `${totalUnits ? Math.round(totalCompleted * 100 / totalUnits) : 0}%`
+    document.querySelector('#participation-met-goals').textContent = `${metGoals} / ${departments.length}`
+    document.querySelector('#participation-best-team').textContent = `${bestDepartment.team} · ${bestDepartment.participationPercent}%`
+    chart.replaceChildren()
+    departments
+      .sort((a, b) => b.participationPercent - a.participationPercent || a.team.localeCompare(b.team, 'ko'))
+      .forEach((department, index) => {
+        const actual = Math.max(0, Math.min(100, Number(department.participationPercent) || 0))
+        const target = Math.max(1, Math.min(100, Number(department.targetPercent) || 100))
+        const row = document.createElement('article')
+        row.className = `participation-row${department.targetMet ? ' target-met' : ''}${index === 0 && actual > 0 ? ' top-participation' : ''}`
+        const label = document.createElement('div')
+        label.className = 'participation-department-label'
+        const name = document.createElement('strong')
+        name.textContent = department.team
+        const count = document.createElement('small')
+        count.textContent = `평가 참여 ${department.completed} / ${department.availableUnits}개 공정`
+        label.append(name, count)
+        const graph = document.createElement('div')
+        graph.className = 'participation-graph-cell'
+        const bar = document.createElement('div')
+        bar.className = 'participation-bar'
+        bar.setAttribute('role', 'img')
+        bar.setAttribute('aria-label', `${department.team} 참여율 ${actual}%, 목표 ${target}%`)
+        const fill = document.createElement('span')
+        fill.className = 'participation-bar-fill'
+        fill.style.width = `${actual}%`
+        const marker = document.createElement('i')
+        marker.className = 'participation-target-marker'
+        marker.style.left = `${target}%`
+        bar.append(fill, marker)
+        const percent = document.createElement('strong')
+        percent.className = 'participation-percent'
+        percent.textContent = `${actual}%`
+        graph.append(bar, percent)
+        const controls = document.createElement('div')
+        controls.className = 'participation-goal-controls'
+        const goalLabel = document.createElement('label')
+        goalLabel.textContent = '목표'
+        const goalInput = document.createElement('input')
+        goalInput.type = 'number'
+        goalInput.min = '1'
+        goalInput.max = '100'
+        goalInput.step = '1'
+        goalInput.value = String(target)
+        goalInput.setAttribute('aria-label', `${department.team} 목표 참여율 퍼센트`)
+        goalLabel.append(goalInput, document.createTextNode('%'))
+        const saveButton = document.createElement('button')
+        saveButton.type = 'button'
+        saveButton.className = 'participation-goal-save'
+        saveButton.textContent = '저장'
+        saveButton.addEventListener('click', async () => {
+          const targetPercent = Number(goalInput.value)
+          if (!Number.isInteger(targetPercent) || targetPercent < 1 || targetPercent > 100) {
+            toast('목표 참여율은 1~100% 사이의 정수로 입력해 주세요.')
+            goalInput.focus()
+            return
+          }
+          saveButton.disabled = true
+          saveButton.textContent = '저장 중'
+          try {
+            const updated = await apiRequest('/api/settings/department-participation/goals', {
+              method: 'PUT',
+              body: JSON.stringify({ year: currentParticipationYear, goals: { [department.team]: targetPercent } }),
+            })
+            renderDepartmentParticipation(updated)
+            toast(`${department.team} 목표 참여율을 ${targetPercent}%로 저장했습니다.`)
+          } catch (error) {
+            showRequestError(error)
+            saveButton.disabled = false
+            saveButton.textContent = '저장'
+          }
+        })
+        controls.append(goalLabel, saveButton)
+        if (department.targetMet) {
+          const badge = document.createElement('span')
+          badge.className = 'participation-met-badge'
+          badge.textContent = '목표 달성'
+          row.append(label, graph, controls, badge)
+        } else {
+          row.append(label, graph, controls)
+        }
+        chart.append(row)
+      })
+  }
+
+  const loadDepartmentParticipation = async (year) => {
+    const chart = document.querySelector('#department-participation-chart')
+    if (!chart) return
+    chart.setAttribute('aria-busy', 'true')
+    try {
+      const data = await apiRequest(`/api/settings/department-participation?year=${encodeURIComponent(year)}`)
+      renderDepartmentParticipation(data)
+    } catch (error) {
+      chart.innerHTML = '<p class="participation-empty">참여율 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.</p>'
+      if (error.status !== 404) showRequestError(error)
+    } finally {
+      chart.removeAttribute('aria-busy')
+    }
+  }
+
+  installDepartmentParticipationPanel()
 
   const ensureCsrf = async () => {
     if (authState.csrfToken) return authState.csrfToken
@@ -1435,4 +1606,5 @@
 
   updateAccessUi()
   loadWorkspaceData()
+  loadDepartmentParticipation(currentParticipationYear)
 })()

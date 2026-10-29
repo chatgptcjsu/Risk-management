@@ -21,6 +21,8 @@
 - 엑셀 파일은 브라우저에서 열람하고 기존 셀을 수정·저장·인쇄 가능
 - PPTX 개선요청 파일도 브라우저에서 슬라이드/표 텍스트를 미리보고 수정·저장·인쇄 가능
 - 대시보드 크기는 125%로 고정하고 크기 조절 UI 제거
+- 부서별 정기 위험성평가 참여율 그래프와 연도 선택
+- 부서별 참여 목표(%) 편집·MariaDB 저장, 목표 달성 부서와 참여율 1위 표시
 - 대시보드 제목 레이블 편집 및 MariaDB 공유 저장
 - 빈도×강도 위험도 계산, 위험도 8 이상 개선 건 테이블, 진행/완료 상태 및 완료일 정렬
 - 일반 기능은 로그인 없이 조회·다운로드·업로드·엑셀 수정·개선 건 등록·상태 변경 가능
@@ -35,6 +37,8 @@
 - `GET /api/settings/dashboard-title`, `PUT /api/settings/dashboard-title` : 대시보드 제목 조회·저장
 - `GET /api/settings/hazard-risk-label`, `PUT /api/settings/hazard-risk-label` : 위험요인 레이블 조회·저장
 - `GET /api/settings/team-processes`, `PUT /api/settings/team-processes` : 팀별 공정 분류 조회·저장
+- `GET /api/settings/department-participation?year={year}` : 부서별 정기 평가 참여율과 목표 현황 조회
+- `PUT /api/settings/department-participation/goals` : 연도·부서별 목표 참여율(1~100%) 저장
 - `POST /api/files/hazard-assessments` : 정기 위험요인을 점수화하고 평가일시·평가자·참여자와 함께 해당 팀·공정 XLSX에 기록
 - `POST /api/improvements` : 평가일시·평가자·참여자·수시 평가 사유를 포함한 개선요청 등록
 - `PUT /api/files/{id}/spreadsheet` : XLS/XLSX 기존 셀 수정 저장 (요청 최대 500셀)

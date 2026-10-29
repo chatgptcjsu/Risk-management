@@ -12,6 +12,9 @@ public interface StoredFileRepository extends JpaRepository<StoredFile, Long> {
 
     List<StoredFile> findAllByYearOrderByUploadedAtDesc(int year);
 
+    List<StoredFile> findAllByYearAndAssessmentTypeAndCategoryOrderByUploadedAtDesc(
+            int year, AssessmentType assessmentType, FileCategory category);
+
     List<StoredFile> findAllByYearAndAssessmentTypeAndCategoryAndTeamAndProcessOrderByUploadedAtDesc(
             int year, AssessmentType assessmentType, FileCategory category, String team, String process);
 }

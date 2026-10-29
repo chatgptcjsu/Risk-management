@@ -291,6 +291,41 @@ h1, h2, h3, p { margin-top: 0; }
 .risk-heading-icon { display: grid; width: 24px; height: 24px; place-items: center; border-radius: 7px; background: #fff0ee; color: #d96d64; }
 .risk-heading-icon svg { width: 14px; height: 14px; }
 .high-risk-pill { padding: 3px 6px; border-radius: 4px; background: #fff1ef; color: #d27168; font-size: 7px; font-weight: 700; }
+.participation-panel { margin: 16px 0; padding: 17px 0 4px; scroll-margin-top: 78px; }
+.participation-heading { align-items: center; margin-bottom: 14px; }
+.participation-live-label { padding: 3px 7px; border-radius: 10px; background: #edf7f3; color: #25836d; font-size: 8px; font-weight: 700; }
+.participation-year-field { display: flex; flex: 0 0 auto; align-items: center; gap: 7px; color: #829198; font-size: 9px; }
+.participation-year-field select { height: 31px; padding: 0 8px; border: 1px solid #e5ebed; border-radius: 6px; background: #fff; color: #4c626b; font: inherit; }
+.participation-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; margin: 0 18px 12px; }
+.participation-summary article { display: grid; gap: 5px; min-width: 0; padding: 10px 12px; border: 1px solid #e8edef; border-radius: 7px; background: #fbfcfc; }
+.participation-summary article span { color: #829198; font-size: 8px; font-weight: 700; }
+.participation-summary article strong { overflow: hidden; color: #276b5c; font-size: 16px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+.participation-legend { display: flex; justify-content: flex-end; gap: 14px; margin: 0 18px 7px; color: #89979d; font-size: 8px; }
+.participation-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.participation-legend i { display: inline-block; width: 9px; height: 9px; border-radius: 3px; }
+.participation-legend .legend-actual { background: #35aa8a; }
+.participation-legend .legend-target { width: 2px; border-radius: 0; background: #e5a145; }
+.participation-chart { border-top: 1px solid #edf1f2; }
+.participation-row { display: grid; grid-template-columns: minmax(145px, .8fr) minmax(180px, 1.5fr) 145px auto; align-items: center; gap: 13px; min-height: 54px; padding: 8px 18px; border-bottom: 1px solid #f0f3f4; }
+.participation-row.target-met { background: linear-gradient(90deg, #f9fcfa, #fff); }
+.participation-department-label { display: grid; gap: 4px; min-width: 0; }
+.participation-department-label strong { overflow: hidden; color: #405963; font-size: 9px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+.participation-department-label small { color: #94a2a7; font-size: 8px; }
+.participation-graph-cell { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.participation-bar { position: relative; flex: 1; height: 11px; overflow: visible; border-radius: 8px; background: #edf2f1; }
+.participation-bar-fill { display: block; height: 100%; min-width: 0; border-radius: inherit; background: linear-gradient(90deg, #79cbb2, #279c7f); transition: width .25s ease; }
+.participation-row:not(.target-met) .participation-bar-fill { background: linear-gradient(90deg, #f0c47e, #d9913b); }
+.participation-target-marker { position: absolute; top: -3px; bottom: -3px; width: 2px; background: #d48c37; box-shadow: 0 0 0 1px #fff; }
+.participation-percent { min-width: 35px; color: #3d7565; font-size: 10px; font-weight: 800; text-align: right; }
+.participation-goal-controls { display: flex; align-items: center; justify-content: flex-end; gap: 5px; }
+.participation-goal-controls label { display: flex; align-items: center; gap: 3px; color: #87959b; font-size: 8px; }
+.participation-goal-controls input { width: 48px; height: 27px; padding: 0 4px; border: 1px solid #e3e9eb; border-radius: 5px; color: #425860; font-size: 9px; text-align: center; }
+.participation-goal-save { height: 27px; padding: 0 8px; border: 1px solid #dcebe5; border-radius: 5px; background: #f6fbf8; color: #2b826d; font-size: 8px; font-weight: 700; }
+.participation-goal-save:hover { border-color: #abd8c9; background: #eef8f3; }
+.participation-goal-save:disabled { cursor: wait; opacity: .6; }
+.participation-met-badge { justify-self: end; padding: 4px 6px; border-radius: 10px; background: #e8f6ee; color: #32815c; font-size: 7px; font-weight: 800; white-space: nowrap; }
+.participation-empty { margin: 0; padding: 20px; color: #94a2a7; font-size: 9px; text-align: center; }
+.participation-chart[aria-busy="true"] { opacity: .65; }
 .improvements-panel, .completed-panel { margin-bottom: 15px; padding-top: 17px; }
 .improvements-heading, .completed-heading { align-items: center; }
 .improvements-heading .button { flex: 0 0 auto; }
@@ -665,6 +700,16 @@ h1, h2, h3, p { margin-top: 0; }
   .team-folder-summary { padding-right: 12px; padding-left: 12px; }
   .folder-files-table th:first-child, .folder-files-table td:first-child { padding-left: 12px; }
   .admin-user-form { grid-template-columns: 1fr; }
+  .participation-heading { align-items: flex-start; flex-direction: column; }
+  .participation-year-field { width: 100%; justify-content: space-between; }
+  .participation-summary { gap: 6px; margin-right: 12px; margin-left: 12px; }
+  .participation-summary article { padding: 8px; }
+  .participation-summary article strong { font-size: 13px; }
+  .participation-legend { margin-right: 12px; margin-left: 12px; }
+  .participation-row { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; padding: 9px 12px; }
+  .participation-graph-cell { grid-column: 1 / -1; grid-row: 2; }
+  .participation-goal-controls { grid-column: 1; grid-row: 3; justify-content: flex-start; }
+  .participation-met-badge { grid-column: 2; grid-row: 3; }
   .modal-backdrop { padding: 12px; }
   .modal-head { padding: 17px 17px 13px; }
   .modal-body { padding: 15px 17px 18px; }
