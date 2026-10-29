@@ -1,6 +1,7 @@
 package com.safetyon.service;
 
 import com.safetyon.model.ApiDtos.HazardAssessmentCreateRequest;
+import com.safetyon.model.ApiDtos.ImprovementCreateRequest;
 import com.safetyon.model.ApiDtos.PresentationDocumentDto;
 import com.safetyon.model.ApiDtos.PresentationEditRequest;
 import com.safetyon.model.ApiDtos.PresentationShapeDto;
@@ -258,6 +259,91 @@ public class FileStorageService {
         } finally {
             if (tempPath != null) try { Files.deleteIfExists(tempPath); } catch (IOException ignored) {}
         }
+    }
+
+    @Transactional
+    public StoredFile createImprovementPresentation(ImprovementCreateRequest request, String username) {
+        if (request.year() < 2000 || request.year() > 2100) throw new IllegalArgumentException("평가 연도를 확인해 주세요.");
+        String team = request.team().trim();
+        String process = clean(request.process());
+        Path directory = scopedDirectory(request.year(), request.assessmentType(), FileCategory.IMPROVEMENT_REQUEST, team, process);
+        String storedName = UUID.randomUUID() + ".pptx";
+        Path targetPath = directory.resolve(storedName).normalize();
+        if (!targetPath.startsWith(storageRoot)) throw new IllegalArgumentException("잘못된 파일 경로입니다.");
+        Path tempPath = null;
+        try {
+            Files.createDirectories(directory);
+            org.springframework.core.io.ClassPathResource template = new org.springframework.core.io.ClassPathResource("templates/improvement-request-template.pptx");
+            try (InputStream input = template.getInputStream(); XMLSlideShow deck = new XMLSlideShow(input)) {
+                if (deck.getSlides().isEmpty()) throw new IllegalArgumentException("개선요청 PPT 템플릿에 슬라이드가 없습니다.");
+                XSLFSlide slide = deck.getSlides().get(0);
+                XSLFTable table = slide.getShapes().stream().filter(XSLFTable.class::isInstance)
+                        .map(XSLFTable.class::cast).findFirst()
+                        .orElseThrow(() -> new IllegalArgumentException("개선요청 PPT 템플릿 표를 찾을 수 없습니다."));
+                String assessedAt = request.assessmentAt() == null ? LocalDate.now().toString()
+                        : request.assessmentAt().format(java.time.format.DateTimeFormatter.ofPattern("yyyy.MM.dd HH:mm"));
+                for (XSLFShape shape : slide.getShapes()) {
+                    if (!(shape instanceof XSLFTextShape textShape)) continue;
+                    String original = textShape.getText();
+                    if (original.contains("부서 : 부서명")) {
+                        replaceText(textShape, "(부서 : " + team + (process.isBlank() ? "" : " / 공정 : " + process) + " / 평가일 : " + assessedAt + ")");
+                    } else if (original.trim().equals("공정명")) {
+                        replaceText(textShape, process.isBlank() ? "팀 전체" : process);
+                    }
+                }
+                int beforeScore = request.frequency() * request.severity();
+                Integer afterScore = request.afterFrequency() == null || request.afterSeverity() == null
+                        ? null : request.afterFrequency() * request.afterSeverity();
+                String hazardText = "작업내용: " + clean(request.workContent())
+                        + "\\n현재 상태: " + clean(request.currentState())
+                        + "\\n위험요인: " + request.hazardEvent().trim();
+                setPresentationCell(table, 1, 0, hazardText);
+                setPresentationCell(table, 1, 2, request.improvementAction().trim());
+                setPresentationCell(table, 1, 4, "개선 전: " + beforeScore + " / 개선 후: " + (afterScore == null ? "미입력" : afterScore));
+                int matrixRow = switch (request.frequency()) { case 1 -> 5; case 2 -> 7; case 3 -> 8; case 4 -> 10; default -> 11; };
+                int matrixColumn = switch (request.severity()) { case 1 -> 8; case 2 -> 9; case 3 -> 10; default -> 12; };
+                String matrixValue = getPresentationCellText(table, matrixRow, matrixColumn);
+                setPresentationCell(table, matrixRow, matrixColumn, "● " + matrixValue);
+                setPresentationCell(table, 20, 1, riskGrade(beforeScore));
+                setPresentationCell(table, 20, 3, afterScore == null ? "—" : riskGrade(afterScore));
+                setPresentationCell(table, 20, 4, "비고: " + clean(request.note())
+                        + (clean(request.assessmentReason()).isBlank() ? "" : " / 수시 사유: " + request.assessmentReason().trim()));
+                setPresentationCell(table, 21, 1, request.plannedDate() == null ? "미정" : request.plannedDate().toString());
+                setPresentationCell(table, 21, 3, clean(request.assignee()).isBlank() ? "미지정" : request.assignee().trim());
+                setPresentationCell(table, 22, 1, "평가자: " + clean(request.evaluator()) + " / 참여자: " + clean(request.participants()));
+                tempPath = Files.createTempFile(directory, ".improvement-request-", ".tmp");
+                try (OutputStream output = Files.newOutputStream(tempPath)) { deck.write(output); }
+            }
+            replaceAtomically(tempPath, targetPath);
+            return files.save(new StoredFile(request.year(), request.assessmentType(), FileCategory.IMPROVEMENT_REQUEST,
+                    team, process, "개선요청_" + (process.isBlank() ? team : process) + ".pptx", storedName,
+                    "application/vnd.openxmlformats-officedocument.presentationml.presentation", Files.size(targetPath), username));
+        } catch (IOException ex) {
+            throw new IllegalStateException("사용자 양식 기반 개선요청 PPT를 생성하지 못했습니다.", ex);
+        } finally {
+            if (tempPath != null) try { Files.deleteIfExists(tempPath); } catch (IOException ignored) {}
+        }
+    }
+
+    private void setPresentationCell(XSLFTable table, int row, int column, String text) {
+        if (row >= table.getNumberOfRows() || column >= table.getNumberOfColumns()) return;
+        XSLFTableCell cell = table.getCell(row, column);
+        if (cell != null) cell.setText(text == null ? "" : text);
+    }
+
+    private String getPresentationCellText(XSLFTable table, int row, int column) {
+        if (row >= table.getNumberOfRows() || column >= table.getNumberOfColumns()) return "";
+        XSLFTableCell cell = table.getCell(row, column);
+        return cell == null ? "" : cell.getText();
+    }
+
+    private String riskGrade(int score) {
+        if (score <= 3) return "1등급";
+        if (score <= 6) return "2등급";
+        if (score == 8) return "3등급";
+        if (score <= 12) return "4등급";
+        if (score == 15) return "5등급";
+        return "6등급";
     }
 
     @Transactional(readOnly = true)

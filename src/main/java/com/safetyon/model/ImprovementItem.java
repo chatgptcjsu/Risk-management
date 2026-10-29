@@ -81,6 +81,9 @@ public class ImprovementItem {
     @Column(name = "source_hazard_file_id")
     private Long sourceHazardFileId;
 
+    @Column(name = "presentation_file_id")
+    private Long presentationFileId;
+
     @Column(columnDefinition = "TEXT")
     private String note;
 
@@ -115,7 +118,8 @@ public class ImprovementItem {
                            LocalDateTime assessmentAt, String evaluator, String participants, String assessmentReason,
                            String workContent, String currentState, String hazardEvent, String improvementAction,
                            int frequency, int severity, Integer afterFrequency, Integer afterSeverity,
-                           LocalDate plannedDate, String assignee, String note, Long sourceHazardFileId, String createdBy) {
+                           LocalDate plannedDate, String assignee, String note, Long sourceHazardFileId,
+                           Long presentationFileId, String createdBy) {
         this.year = year;
         this.assessmentType = assessmentType;
         this.team = team;
@@ -134,6 +138,7 @@ public class ImprovementItem {
         this.afterFrequency = afterFrequency;
         this.afterSeverity = afterSeverity;
         this.sourceHazardFileId = sourceHazardFileId;
+        this.presentationFileId = presentationFileId;
         this.plannedDate = plannedDate;
         this.assignee = assignee;
         this.note = note;
@@ -177,6 +182,8 @@ public class ImprovementItem {
     public Integer getAfterRiskScore() { return afterFrequency == null || afterSeverity == null ? null : afterFrequency * afterSeverity; }
     public String getNote() { return note; }
     public Long getSourceHazardFileId() { return sourceHazardFileId; }
+    public Long getPresentationFileId() { return presentationFileId; }
+    public void setPresentationFileId(Long presentationFileId) { this.presentationFileId = presentationFileId; }
     public ImprovementStatus getStatus() { return status; }
     public LocalDate getPlannedDate() { return plannedDate; }
     public LocalDate getCompletedDate() { return completedDate; }

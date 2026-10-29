@@ -34,7 +34,8 @@ public final class ApiDtos {
             LocalDate plannedDate,
             String assignee,
             @Size(max = 2000) String note,
-            Long sourceHazardFileId
+            Long sourceHazardFileId,
+            Long presentationFileId
     ) {}
 
     public record StatusUpdateRequest(
@@ -64,6 +65,7 @@ public final class ApiDtos {
             Integer afterRiskScore,
             String note,
             Long sourceHazardFileId,
+            Long presentationFileId,
             ImprovementStatus status,
             LocalDate plannedDate,
             LocalDate completedDate,
