@@ -570,7 +570,7 @@
 
   const showImprovementRequestPage = (context) => {
     const content = document.createElement('div')
-    content.className = 'workflow-form-grid'
+    content.className = 'ppt-improvement-sheet'
     const team = document.createElement('select')
     const process = document.createElement('select')
     makeTeamProcessSelectors(team, process)
@@ -597,10 +597,10 @@
     const severity = document.createElement('select')
     severity.innerHTML = '<option value="1">1 · 영향 없음</option><option value="2">2 · 경미한 재해</option><option value="3">3 · 경중한 재해</option><option value="4">4 · 중대 재해</option>'
     severity.value = String(context.severity || 2)
-    const afterFrequency = document.createElement('select')
-    afterFrequency.innerHTML = '<option value="">개선 후 빈도 선택</option><option value="1">1 · 거의 없음</option><option value="2">2 · 낮음</option><option value="3">3 · 있음</option><option value="4">4 · 높음</option><option value="5">5 · 빈번함</option>'
-    const afterSeverity = document.createElement('select')
-    afterSeverity.innerHTML = '<option value="">개선 후 강도 선택</option><option value="1">1 · 영향 없음</option><option value="2">2 · 경미한 재해</option><option value="3">3 · 경중한 재해</option><option value="4">4 · 중대 재해</option>'
+    const afterFrequency = document.createElement('input')
+    afterFrequency.type = 'hidden'
+    const afterSeverity = document.createElement('input')
+    afterSeverity.type = 'hidden'
     const date = document.createElement('input')
     date.type = 'date'
     const assignee = document.createElement('input')
@@ -622,21 +622,156 @@
     severity.addEventListener('change', refreshBeforeScore)
     refreshBeforeScore()
     const scoreBox = document.createElement('div')
-    scoreBox.className = 'risk-score-preview-row'
+    scoreBox.className = 'ppt-before-risk-summary'
     scoreBox.append(score)
     const riskRow = document.createElement('div')
     riskRow.className = 'form-row'
     riskRow.append(field('개선 전 빈도', frequency), field('개선 전 강도', severity))
-    const afterRow = document.createElement('div')
-    afterRow.className = 'form-row'
-    afterRow.append(field('개선 후 빈도 (선택)', afterFrequency), field('개선 후 강도 (선택)', afterSeverity))
     const evaluationSummary = document.createElement('div')
     evaluationSummary.className = 'assessment-meta-summary'
     evaluationSummary.textContent = `평가일시 ${context.assessmentAt.replace('T', ' ')} · 평가자 ${context.evaluator} · 참여자 ${context.participants}${context.assessmentReason ? ` · 사유 ${context.assessmentReason}` : ''}`
-    content.append(evaluationSummary, field('부서 / 팀', team), field('공정', process), field('작업내용', workContent), field('위험요인 및 재해형태', hazard), field('현재 상태 및 조치', currentState), field('개선(예방)대책', action), riskRow, scoreBox, afterRow, field('개선 예정일', date), field('담당자', assignee), field('비고', note))
-    updateWorkflowPage('개선요청 작성', context.assessmentType === 'AD_HOC' ? '수시 위험성평가는 위험요인 시트를 거치지 않고 개선요청을 작성합니다.' : '위험도 8 이상 항목에 대한 개선·예방 대책을 작성하세요.', content, '개선요청 등록', async () => {
+
+    const sheetHeader = document.createElement('header')
+    sheetHeader.className = 'ppt-improvement-header'
+    const sheetTitle = document.createElement('h3')
+    sheetTitle.textContent = '위험성 평가 ( 개선 필요 건 )'
+    const sheetSubtitle = document.createElement('p')
+    sheetSubtitle.textContent = `${context.team}${context.process ? ` · ${context.process}` : ''} · ${context.year}년 · 위험도 ${beforeScore}점`
+    sheetHeader.append(sheetTitle, sheetSubtitle)
+    const progressRibbon = document.createElement('ol')
+    progressRibbon.className = 'ppt-progress-ribbon'
+    ;['8점 이상 위험', '현장 확인 및 협의 중', '공무팀 검토', '공사진행', '공사 검토', '공사완료'].forEach((label, index) => {
+      const step = document.createElement('li')
+      if (index === 0) step.className = 'active'
+      step.textContent = label
+      progressRibbon.append(step)
+    })
+    const formColumns = document.createElement('div')
+    formColumns.className = 'ppt-improvement-columns'
+    const riskPanel = document.createElement('section')
+    riskPanel.className = 'ppt-improvement-panel'
+    const hazardTitle = document.createElement('h4')
+    hazardTitle.textContent = '위험요인 및 재해형태'
+    riskPanel.append(hazardTitle, field('위험요인 및 재해형태', hazard), field('현재 상태 및 조치', currentState))
+    const actionPanel = document.createElement('section')
+    actionPanel.className = 'ppt-improvement-panel'
+    const actionTitle = document.createElement('h4')
+    actionTitle.textContent = '개선(예방)대책'
+    actionPanel.append(actionTitle, field('개선(예방)대책', action))
+    formColumns.append(riskPanel, actionPanel)
+
+    const matrixSection = document.createElement('section')
+    matrixSection.className = 'ppt-risk-matrix-section'
+    const matrixHeader = document.createElement('div')
+    matrixHeader.className = 'ppt-risk-matrix-header'
+    const matrixTitle = document.createElement('h4')
+    matrixTitle.textContent = '개선 전·후 위험성(리스크) 평가'
+    const matrixLegend = document.createElement('div')
+    matrixLegend.className = 'ppt-risk-legend'
+    matrixLegend.innerHTML = '<span><i class="ppt-before-marker">○</i> 개선 전</span><span><i class="ppt-after-marker">○</i> 개선 후</span>'
+    matrixHeader.append(matrixTitle, matrixLegend)
+    const riskMatrix = document.createElement('table')
+    riskMatrix.className = 'ppt-risk-matrix'
+    riskMatrix.setAttribute('aria-label', '빈도와 강도별 위험도 매트릭스')
+    const severityLabels = ['영향 없음', '경미한 재해', '경중한 재해', '중대 재해']
+    const frequencyLabels = ['거의 없음', '낮음', '있음', '높음', '빈번함']
+    const matrixHead = document.createElement('thead')
+    const headingRow = document.createElement('tr')
+    const corner = document.createElement('th')
+    corner.textContent = '빈도 / 강도'
+    headingRow.append(corner)
+    severityLabels.forEach((label, index) => {
+      const th = document.createElement('th')
+      th.innerHTML = '<span></span><small></small>'
+      th.querySelector('span').textContent = label
+      th.querySelector('small').textContent = String(index + 1)
+      headingRow.append(th)
+    })
+    matrixHead.append(headingRow)
+    const matrixBody = document.createElement('tbody')
+    const afterRiskLabel = document.createElement('strong')
+    afterRiskLabel.className = 'ppt-after-risk-label'
+    afterRiskLabel.textContent = '개선 후 위험도를 선택하세요.'
+    let refreshRiskMatrix = () => {}
+    frequencyLabels.forEach((frequencyLabel, rowIndex) => {
+      const frequencyValue = rowIndex + 1
+      const tr = document.createElement('tr')
+      const rowHeader = document.createElement('th')
+      rowHeader.innerHTML = '<span></span><small></small>'
+      rowHeader.querySelector('span').textContent = frequencyLabel
+      rowHeader.querySelector('small').textContent = String(frequencyValue)
+      tr.append(rowHeader)
+      severityLabels.forEach((_, columnIndex) => {
+        const severityValue = columnIndex + 1
+        const cell = document.createElement('td')
+        const button = document.createElement('button')
+        button.type = 'button'
+        button.className = `ppt-risk-cell ${frequencyValue * severityValue >= 16 ? 'risk-cell-extreme' : frequencyValue * severityValue >= 8 ? 'risk-cell-high' : ''}`
+        button.dataset.frequency = String(frequencyValue)
+        button.dataset.severity = String(severityValue)
+        button.dataset.score = String(frequencyValue * severityValue)
+        button.setAttribute('aria-label', `빈도 ${frequencyValue}, 강도 ${severityValue}, 위험도 ${frequencyValue * severityValue}`)
+        const value = document.createElement('span')
+        value.textContent = button.dataset.score
+        const beforeMarker = document.createElement('i')
+        beforeMarker.className = 'ppt-before-marker'
+        beforeMarker.textContent = '○'
+        beforeMarker.hidden = true
+        const afterMarker = document.createElement('i')
+        afterMarker.className = 'ppt-after-marker'
+        afterMarker.textContent = '○'
+        afterMarker.hidden = true
+        button.append(value, beforeMarker, afterMarker)
+        button.addEventListener('click', () => {
+          afterFrequency.value = button.dataset.frequency
+          afterSeverity.value = button.dataset.severity
+          afterRiskLabel.textContent = `개선 후 위험도 ${button.dataset.score}점`
+          refreshRiskMatrix()
+        })
+        cell.append(button)
+        tr.append(cell)
+      })
+      matrixBody.append(tr)
+    })
+    riskMatrix.append(matrixHead, matrixBody)
+    refreshRiskMatrix = () => {
+      const currentAfterScore = Number(afterFrequency.value) * Number(afterSeverity.value)
+      if (afterFrequency.value && currentAfterScore >= beforeScore) {
+        afterFrequency.value = ''
+        afterSeverity.value = ''
+        afterRiskLabel.textContent = '개선 후 위험도를 선택하세요.'
+      }
+      riskMatrix.querySelectorAll('.ppt-risk-cell').forEach((cell) => {
+        const cellScore = Number(cell.dataset.score)
+        const beforeSelected = Number(cell.dataset.frequency) === Number(frequency.value)
+          && Number(cell.dataset.severity) === Number(severity.value)
+        const afterSelected = Boolean(afterFrequency.value) && cellScore === Number(afterFrequency.value) * Number(afterSeverity.value)
+        cell.classList.toggle('selected-before', beforeSelected)
+        cell.classList.toggle('selected-after', afterSelected)
+        cell.disabled = cellScore >= beforeScore
+        cell.querySelector('.ppt-before-marker').hidden = !beforeSelected
+        cell.querySelector('.ppt-after-marker').hidden = !afterSelected
+      })
+      score.textContent = `개선 전 위험도 ${beforeScore}점`
+    }
+    const matrixHelp = document.createElement('p')
+    matrixHelp.className = 'ppt-risk-matrix-help'
+    matrixHelp.textContent = '개선 전 위험도는 Excel 평가에서 가져옵니다. 개선 후 위험도는 개선 전보다 낮은 칸을 선택하세요.'
+    const gradeTable = document.createElement('table')
+    gradeTable.className = 'ppt-risk-grade-table'
+    gradeTable.innerHTML = '<thead><tr><th>등급</th><th>위험도 수준</th><th>위험도</th></tr></thead><tbody><tr class="grade-1"><th>1</th><td>무시할 수 있는 위험</td><td>1~3</td></tr><tr class="grade-2"><th>2</th><td>미미한 위험 (필요 시 개선)</td><td>4~6</td></tr><tr class="grade-3"><th>3</th><td>경미한 위험 (계획적 개선)</td><td>8</td></tr><tr class="grade-4"><th>4</th><td>상당한 위험 (조건부 작업, 개선)</td><td>9~12</td></tr><tr class="grade-5"><th>5</th><td>중대한 위험 (신속 개선)</td><td>15</td></tr><tr class="grade-6"><th>6</th><td>허용 불가 위험 (즉시 작업 중지)</td><td>16~20</td></tr></tbody>'
+    matrixSection.append(matrixHeader, matrixHelp, riskMatrix, afterRiskLabel, afterFrequency, afterSeverity, gradeTable)
+    const detailGrid = document.createElement('div')
+    detailGrid.className = 'ppt-improvement-details'
+    detailGrid.append(field('개선 예정일', date), field('담당자', assignee))
+    frequency.addEventListener('change', () => { refreshBeforeScore(); refreshRiskMatrix() })
+    severity.addEventListener('change', () => { refreshBeforeScore(); refreshRiskMatrix() })
+    refreshRiskMatrix()
+    content.append(sheetHeader, evaluationSummary, progressRibbon, formColumns, riskRow, scoreBox, matrixSection, detailGrid, field('비고', note))
+    updateWorkflowPage('PPT 양식형 개선요청', context.assessmentType === 'AD_HOC' ? '수시 위험성평가는 위험요인 시트를 거치지 않고 개선요청을 작성합니다.' : 'Excel 평가에서 위험도 8점 이상으로 확인된 항목입니다. PPT 양식에 따라 개선 전·후 위험도를 평가하세요.', content, 'PPT 개선요청 등록', async () => {
       if (!team.value || !hazard.value.trim() || !action.value.trim()) { toast('부서·팀, 위험요인, 개선대책을 입력해 주세요.'); return }
       if (context.assessmentType === 'REGULAR' && beforeScore < 8) { toast('정기 위험성평가 개선요청은 위험도 8 이상만 등록할 수 있습니다.'); return }
+      if (context.fileId && (!afterFrequency.value || !afterSeverity.value)) { toast('PPT 양식처럼 개선 후 위험도를 매트릭스에서 선택해 주세요.'); return }
       if (Boolean(afterFrequency.value) !== Boolean(afterSeverity.value)) { toast('개선 후 빈도와 강도를 함께 선택해 주세요.'); return }
       if (afterFrequency.value && Number(afterFrequency.value) * Number(afterSeverity.value) >= beforeScore) { toast('개선 후 위험도는 개선 전보다 낮아야 합니다.'); return }
       try {

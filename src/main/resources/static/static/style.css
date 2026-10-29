@@ -476,6 +476,60 @@ h1, h2, h3, p { margin-top: 0; }
 .workflow-form-grid .form-field:has(textarea) { grid-column: 1 / -1; }
 .workflow-form-grid textarea { min-height: 76px; resize: vertical; }
 .workflow-actions { display: flex; justify-content: flex-end; gap: 8px; padding: 18px 24px 24px; }
+.ppt-improvement-sheet { display: grid; gap: 12px; max-width: 1120px; margin: 0 auto; padding: 15px; border: 1px solid #aab6ba; background: #fff; box-shadow: 0 3px 12px rgba(25,53,66,.07); }
+.ppt-improvement-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding-bottom: 9px; border-bottom: 2px solid #4e6b74; }
+.ppt-improvement-header h3 { margin: 0; color: #203941; font-size: 17px; font-weight: 900; }
+.ppt-improvement-header p { margin: 4px 0 0; color: #64767d; font-size: 9px; font-weight: 700; }
+.ppt-progress-ribbon { display: grid; grid-template-columns: repeat(6, minmax(82px, 1fr)); gap: 3px; overflow-x: auto; margin: 0; padding: 0; list-style: none; }
+.ppt-progress-ribbon li { display: grid; min-height: 30px; place-items: center; padding: 4px; border: 1px solid #8b9da3; background: #f9fbfb; color: #586c72; font-size: 8px; font-weight: 800; text-align: center; }
+.ppt-progress-ribbon li.active { border-color: #c3b800; background: #fff500; color: #242424; }
+.ppt-improvement-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid #71858b; }
+.ppt-improvement-panel { display: grid; align-content: start; gap: 8px; min-width: 0; padding: 9px; }
+.ppt-improvement-panel + .ppt-improvement-panel { border-left: 1px solid #71858b; }
+.ppt-improvement-panel h4, .ppt-risk-matrix-header h4 { margin: 0; color: #263d44; font-size: 10px; font-weight: 900; text-align: center; }
+.ppt-improvement-panel h4 { padding: 6px; border: 1px solid #82959b; background: #e7f0f2; }
+.ppt-improvement-panel .form-field { gap: 5px; }
+.ppt-improvement-panel .form-field > span { color: #4d6168; font-size: 8px; font-weight: 800; }
+.ppt-improvement-panel textarea { min-height: 54px; font-size: 9px; }
+.ppt-improvement-panel .form-field:first-of-type textarea { min-height: 76px; }
+.ppt-before-risk-summary { display: flex; align-items: center; justify-content: center; min-height: 35px; border: 1px solid #d9e5e2; background: #f6fbf8; }
+.ppt-before-risk-summary .risk-score-preview { margin: 0; color: #c9484d; font-size: 11px; }
+.ppt-risk-matrix-section { display: grid; gap: 7px; padding: 9px; border: 1px solid #71858b; }
+.ppt-risk-matrix-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ppt-risk-legend { display: flex; gap: 12px; color: #53676d; font-size: 8px; font-weight: 800; }
+.ppt-risk-legend span { display: flex; align-items: center; gap: 3px; }
+.ppt-before-marker, .ppt-after-marker { color: #e23a45; font-size: 14px; font-style: normal; font-weight: 900; }
+.ppt-after-marker { color: #24a96b; }
+.ppt-risk-matrix-help { margin: 0; color: #65777d; font-size: 8px; line-height: 1.5; }
+.ppt-risk-matrix { width: 100%; border-collapse: collapse; table-layout: fixed; text-align: center; }
+.ppt-risk-matrix th, .ppt-risk-matrix td { height: 34px; padding: 2px; border: 1px solid #59696e; }
+.ppt-risk-matrix thead th, .ppt-risk-matrix tbody th { background: #fff500; color: #202020; font-size: 8px; line-height: 1.15; }
+.ppt-risk-matrix th:first-child { width: 21%; }
+.ppt-risk-matrix th span, .ppt-risk-matrix th small { display: block; }
+.ppt-risk-matrix th small { margin-top: 2px; font-size: 8px; }
+.ppt-risk-cell { position: relative; display: flex; align-items: center; justify-content: center; gap: 1px; width: 100%; height: 100%; min-height: 27px; padding: 0; border: 0; background: #fff; color: #222; font-size: 9px; font-weight: 800; cursor: pointer; }
+.ppt-risk-cell.risk-cell-high { background: #fff0ed; }
+.ppt-risk-cell.risk-cell-extreme { background: #f6bfc2; color: #a91e28; }
+.ppt-risk-cell:disabled { cursor: not-allowed; opacity: .55; }
+.ppt-risk-cell.selected-before { outline: 2px solid #e23a45; outline-offset: -2px; }
+.ppt-risk-cell.selected-after { outline: 2px solid #24a96b; outline-offset: -2px; }
+.ppt-risk-cell .ppt-before-marker, .ppt-risk-cell .ppt-after-marker { position: absolute; font-size: 17px; line-height: .8; }
+.ppt-risk-cell [hidden] { display: none; }
+.ppt-after-risk-label { color: #38815f; font-size: 9px; text-align: center; }
+.ppt-risk-grade-table { width: 100%; border-collapse: collapse; table-layout: fixed; text-align: center; }
+.ppt-risk-grade-table th, .ppt-risk-grade-table td { padding: 4px; border: 1px solid #9aa8ad; color: #40535a; font-size: 8px; }
+.ppt-risk-grade-table thead th { background: #f1f5f5; }
+.ppt-risk-grade-table tr.grade-1 { background: #e6f2d9; }
+.ppt-risk-grade-table tr.grade-2, .ppt-risk-grade-table tr.grade-3 { background: #f3f7df; }
+.ppt-risk-grade-table tr.grade-4 { background: #fff0ef; }
+.ppt-risk-grade-table tr.grade-5 { background: #ffc8c9; }
+.ppt-risk-grade-table tr.grade-6 { background: #f4575e; }
+.ppt-risk-grade-table tr.grade-6 th, .ppt-risk-grade-table tr.grade-6 td { color: #fff; }
+.ppt-improvement-details { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.ppt-improvement-details .form-field > span { color: #50636a; font-size: 9px; font-weight: 800; }
+.ppt-improvement-details input { min-height: 33px; }
+.ppt-improvement-sheet > .form-field > span { color: #50636a; font-size: 9px; font-weight: 800; }
+.ppt-improvement-sheet > .form-field textarea { min-height: 45px; }
 .team-folder-page { min-height: 360px; overflow: hidden; padding: 0 0 20px; }
 .team-folder-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 15px 18px; border-bottom: 1px solid #edf1f2; }
 .team-folder-toolbar .back-chevron { width: 14px; height: 14px; transform: rotate(90deg); }
@@ -710,6 +764,24 @@ h1, h2, h3, p { margin-top: 0; }
   .participation-graph-cell { grid-column: 1 / -1; grid-row: 2; }
   .participation-goal-controls { grid-column: 1; grid-row: 3; justify-content: flex-start; }
   .participation-met-badge { grid-column: 2; grid-row: 3; }
+  .ppt-improvement-sheet { gap: 8px; padding: 9px; }
+  .ppt-improvement-header { flex-direction: column; }
+  .ppt-improvement-header h3 { font-size: 14px; }
+  .ppt-progress-ribbon { grid-template-columns: repeat(6, 86px); }
+  .ppt-improvement-columns { grid-template-columns: 1fr; }
+  .ppt-improvement-panel + .ppt-improvement-panel { border-top: 1px solid #71858b; border-left: 0; }
+  .ppt-improvement-details { grid-template-columns: 1fr; gap: 8px; }
+  .ppt-risk-matrix-section { overflow-x: auto; }
+  .ppt-risk-matrix { min-width: 480px; }
+  .ppt-risk-grade-table { min-width: 440px; }
+  .ppt-improvement-header h3 { font-size: 14px; }
+  .ppt-progress-ribbon { grid-template-columns: repeat(6, minmax(82px, 1fr)); }
+  .ppt-improvement-columns { grid-template-columns: 1fr; }
+  .ppt-improvement-panel + .ppt-improvement-panel { border-top: 1px solid #71858b; border-left: 0; }
+  .ppt-improvement-details { grid-template-columns: 1fr; gap: 8px; }
+  .ppt-risk-matrix-section { overflow-x: auto; }
+  .ppt-risk-matrix { min-width: 480px; }
+  .ppt-risk-grade-table { min-width: 440px; }
   .modal-backdrop { padding: 12px; }
   .modal-head { padding: 17px 17px 13px; }
   .modal-body { padding: 15px 17px 18px; }
