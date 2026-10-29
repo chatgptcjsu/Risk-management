@@ -246,15 +246,8 @@ app.get('/', (c) => {
               <p id="page-subtitle">작업현장의 유해·위험요인과 개선 진행 상황을 확인하세요.</p>
             </div>
             <div class="heading-actions">
-              <div class="dashboard-size-control" role="group" aria-label="대시보드 크기 조절">
-                <span class="size-control-label">크기</span>
-                <button class="size-step-button" id="dashboard-size-decrease" type="button" aria-label="대시보드 축소">−</button>
-                <input id="dashboard-size-range" type="range" min="85" max="115" step="5" value="100" aria-label="대시보드 크기" />
-                <output id="dashboard-size-value" for="dashboard-size-range">100%</output>
-                <button class="size-step-button" id="dashboard-size-increase" type="button" aria-label="대시보드 확대">+</button>
-              </div>
               <button class="button button-secondary" id="export-button" type="button"><Icon name="download" /> 내보내기</button>
-              <button class="button button-primary" id="new-assessment-button" type="button"><Icon name="plus" /> 새 평가 만들기</button>
+              <button class="button button-primary" id="new-assessment-button" type="button"><Icon name="plus" /> 위험성평가 실시</button>
             </div>
           </section>
 
@@ -418,6 +411,12 @@ app.get('/', (c) => {
             <div class="assessment-hub-toolbar"><button class="button button-secondary" id="subcategory-back-button" type="button">분류 목록</button></div>
             <div class="assessment-hub-heading"><div class="subcategory-label-row"><span class="folder-eyebrow" id="subcategory-label">유해∙위험요인</span><button class="subcategory-label-edit" id="edit-hazard-risk-label-button" type="button" aria-label="분류 레이블 편집" title="분류 레이블 편집"><Icon name="edit" /></button></div><h2 id="subcategory-title">팀과 공정을 선택하세요</h2><p id="subcategory-description">목록에서 팀 또는 공정을 선택해 파일을 확인합니다.</p></div>
             <div class="subcategory-team-grid" id="subcategory-team-grid"></div>
+          </section>
+          <section class="panel assessment-workflow-page" id="assessment-workflow-view" hidden>
+            <div class="assessment-hub-toolbar"><button class="button button-secondary" id="workflow-back-button" type="button">뒤로</button></div>
+            <div class="assessment-hub-heading"><span class="folder-eyebrow" id="workflow-label">위험성평가 실시</span><h2 id="workflow-title">유해위험요인 작성</h2><p id="workflow-description">작업내용과 위험요인을 입력하고 빈도×강도로 위험도를 평가하세요.</p></div>
+            <div class="workflow-content" id="workflow-content"></div>
+            <div class="workflow-actions"><button class="button button-secondary" id="workflow-cancel-button" type="button">취소</button><button class="button button-primary" id="workflow-submit-button" type="button">위험도 계산 및 저장</button></div>
           </section>
           <section class="panel team-process-page" id="team-process-view" hidden>
             <div class="assessment-hub-toolbar"><button class="button button-secondary" id="team-process-back-button" type="button">팀 목록</button></div>

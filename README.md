@@ -12,7 +12,13 @@
 - 정기: 유해위험요인 XLS/XLSX 및 개선요청 PPT/PPTX 업로드
 - 수시: 개선요청 PPT/PPTX 업로드만 허용
 - 파일 메타데이터 MariaDB 저장, 바이너리 `data/uploads/` 저장, 목록·브라우저 미리보기·다운로드·관리자 삭제
+- 위험성평가 실시: 팀·공정 선택 후 정기는 유해위험요인 작성, 수시는 위험요인 시트 없이 개선요청 작성
+- 정기 평가는 빈도(1~5) × 강도(1~4)로 위험도를 계산하고 위험요인 행을 공정별 XLSX에 저장; 위험도 8 이상은 개선요청으로 이어짐
+- 수시 위험성평가 개선요청은 부서·팀과 공정을 선택해 바로 등록
+- 개선요청은 요청·진행·완료 상태를 표에서 선택하고 완료일을 기록
 - 엑셀 파일은 브라우저에서 열람하고 기존 셀을 수정·저장·인쇄 가능
+- PPTX 개선요청 파일도 브라우저에서 슬라이드/표 텍스트를 미리보고 수정·저장·인쇄 가능
+- 대시보드 크기는 125%로 고정하고 크기 조절 UI 제거
 - 대시보드 제목 레이블 편집 및 MariaDB 공유 저장
 - 빈도×강도 위험도 계산, 위험도 8 이상 개선 건 테이블, 진행/완료 상태 및 완료일 정렬
 - 일반 기능은 로그인 없이 조회·다운로드·업로드·엑셀 수정·개선 건 등록·상태 변경 가능
@@ -27,8 +33,11 @@
 - `GET /api/settings/dashboard-title`, `PUT /api/settings/dashboard-title` : 대시보드 제목 조회·저장
 - `GET /api/settings/hazard-risk-label`, `PUT /api/settings/hazard-risk-label` : 위험요인 레이블 조회·저장
 - `GET /api/settings/team-processes`, `PUT /api/settings/team-processes` : 팀별 공정 분류 조회·저장
+- `POST /api/files/hazard-assessments` : 정기 위험요인을 점수화하고 해당 팀·공정 XLSX에 기록
 - `PUT /api/files/{id}/spreadsheet` : XLS/XLSX 기존 셀 수정 저장 (요청 최대 500셀)
-- 엑셀 목록의 파일명을 누르면 브라우저 내 시트 미리보기 열기; 편집 후 저장·인쇄 버튼 제공, 다운로드 버튼도 유지
+- `GET/PUT /api/files/{id}/presentation` : PPTX 슬라이드와 표 텍스트 미리보기·수정 저장
+- `PATCH /api/improvements/{id}/status` : 개선요청 상태 요청·진행·완료 변경
+- XLSX/PPTX 파일명을 누르면 브라우저에서 열고 편집·저장·인쇄 가능; 원본 다운로드도 제공
 
 ## 아직 연결되지 않은 기능
 - 업로드된 엑셀/PPT 내용의 자동 분석 및 위험요인 레코드 자동 생성 (엑셀 열람·수정·저장·인쇄는 지원)

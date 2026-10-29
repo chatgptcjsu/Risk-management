@@ -1,12 +1,17 @@
 package com.safetyon.controller;
 
 import com.safetyon.model.ApiDtos.FileMetadataDto;
+import com.safetyon.model.ApiDtos.HazardAssessmentCreateRequest;
+import com.safetyon.model.ApiDtos.HazardAssessmentResponse;
+import com.safetyon.model.ApiDtos.PresentationDocumentDto;
+import com.safetyon.model.ApiDtos.PresentationEditRequest;
 import com.safetyon.model.ApiDtos.SpreadsheetEditRequest;
 import com.safetyon.model.ApiDtos.UploadResponse;
 import com.safetyon.model.AssessmentType;
 import com.safetyon.model.FileCategory;
 import com.safetyon.model.StoredFile;
 import com.safetyon.service.FileStorageService;
+import com.safetyon.service.FileStorageService.HazardAssessmentWriteResult;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import org.springframework.core.io.Resource;
@@ -65,6 +70,28 @@ public class FileController {
         String uploadedBy = actorName(authentication);
         List<StoredFile> saved = storage.store(year, assessmentType, category, team, process, files, uploadedBy);
         return new UploadResponse(saved.stream().map(this::toDto).toList());
+    }
+
+    @PostMapping(value = "/hazard-assessments", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public HazardAssessmentResponse createHazardAssessment(
+            @jakarta.validation.Valid @RequestBody HazardAssessmentCreateRequest request,
+            Authentication authentication) {
+        HazardAssessmentWriteResult result = storage.addHazardAssessment(request, actorName(authentication));
+        StoredFile file = result.file();
+        FileMetadataDto dto = toDto(file);
+        return new HazardAssessmentResponse(file.getId(), result.riskScore(), result.riskScore() >= 8, dto);
+    }
+
+    @GetMapping(value = "/{id}/presentation", produces = MediaType.APPLICATION_JSON_VALUE)
+    public PresentationDocumentDto presentation(@PathVariable long id) {
+        return storage.getPresentation(id);
+    }
+
+    @PutMapping(value = "/{id}/presentation", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public FileMetadataDto updatePresentation(@PathVariable long id,
+                                              @jakarta.validation.Valid @RequestBody PresentationEditRequest request,
+                                              Authentication authentication) {
+        return toDto(storage.updatePresentation(id, request, actorName(authentication)));
     }
 
     @PutMapping(value = "/{id}/spreadsheet", consumes = MediaType.APPLICATION_JSON_VALUE)

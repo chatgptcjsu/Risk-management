@@ -39,6 +39,12 @@ public class ImprovementItem {
     @Column(length = 120)
     private String process;
 
+    @Column(name = "work_content", columnDefinition = "TEXT")
+    private String workContent;
+
+    @Column(name = "current_state", columnDefinition = "TEXT")
+    private String currentState;
+
     @Column(name = "hazard_event", nullable = false, columnDefinition = "TEXT")
     private String hazardEvent;
 
@@ -53,6 +59,18 @@ public class ImprovementItem {
 
     @Column(name = "risk_score", nullable = false)
     private Integer riskScore;
+
+    @Column(name = "after_frequency")
+    private Integer afterFrequency;
+
+    @Column(name = "after_severity")
+    private Integer afterSeverity;
+
+    @Column(name = "source_hazard_file_id")
+    private Long sourceHazardFileId;
+
+    @Column(columnDefinition = "TEXT")
+    private String note;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
@@ -82,22 +100,29 @@ public class ImprovementItem {
     protected ImprovementItem() {}
 
     public ImprovementItem(int year, AssessmentType assessmentType, String team, String process,
-                           String hazardEvent, String improvementAction, int frequency, int severity,
-                           LocalDate plannedDate, String assignee, String createdBy) {
+                           String workContent, String currentState, String hazardEvent, String improvementAction,
+                           int frequency, int severity, Integer afterFrequency, Integer afterSeverity,
+                           LocalDate plannedDate, String assignee, String note, Long sourceHazardFileId, String createdBy) {
         this.year = year;
         this.assessmentType = assessmentType;
         this.team = team;
         this.process = process;
+        this.workContent = workContent;
+        this.currentState = currentState;
         this.hazardEvent = hazardEvent;
         this.improvementAction = improvementAction;
         this.frequency = frequency;
         this.severity = severity;
         this.riskScore = frequency * severity;
+        this.afterFrequency = afterFrequency;
+        this.afterSeverity = afterSeverity;
+        this.sourceHazardFileId = sourceHazardFileId;
         this.plannedDate = plannedDate;
         this.assignee = assignee;
+        this.note = note;
         this.createdBy = createdBy;
         this.updatedBy = createdBy;
-        this.status = ImprovementStatus.IN_PROGRESS;
+        this.status = ImprovementStatus.REQUESTED;
     }
 
     @PrePersist
@@ -119,11 +144,18 @@ public class ImprovementItem {
     public AssessmentType getAssessmentType() { return assessmentType; }
     public String getTeam() { return team; }
     public String getProcess() { return process; }
+    public String getWorkContent() { return workContent; }
+    public String getCurrentState() { return currentState; }
     public String getHazardEvent() { return hazardEvent; }
     public String getImprovementAction() { return improvementAction; }
     public Integer getFrequency() { return frequency; }
     public Integer getSeverity() { return severity; }
     public Integer getRiskScore() { return riskScore; }
+    public Integer getAfterFrequency() { return afterFrequency; }
+    public Integer getAfterSeverity() { return afterSeverity; }
+    public Integer getAfterRiskScore() { return afterFrequency == null || afterSeverity == null ? null : afterFrequency * afterSeverity; }
+    public String getNote() { return note; }
+    public Long getSourceHazardFileId() { return sourceHazardFileId; }
     public ImprovementStatus getStatus() { return status; }
     public LocalDate getPlannedDate() { return plannedDate; }
     public LocalDate getCompletedDate() { return completedDate; }

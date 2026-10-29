@@ -17,14 +17,20 @@ public final class ApiDtos {
     public record ImprovementCreateRequest(
             @NotNull @Min(2000) @Max(2100) Integer year,
             @NotNull AssessmentType assessmentType,
-            @NotBlank String team,
-            String process,
-            @NotBlank String hazardEvent,
-            @NotBlank String improvementAction,
+            @NotBlank @Size(max = 80) String team,
+            @Size(max = 120) String process,
+            @Size(max = 500) String workContent,
+            @Size(max = 2000) String currentState,
+            @NotBlank @Size(max = 4000) String hazardEvent,
+            @NotBlank @Size(max = 4000) String improvementAction,
             @NotNull @Min(1) @Max(5) Integer frequency,
             @NotNull @Min(1) @Max(4) Integer severity,
+            @Min(1) @Max(5) Integer afterFrequency,
+            @Min(1) @Max(4) Integer afterSeverity,
             LocalDate plannedDate,
-            String assignee
+            String assignee,
+            @Size(max = 2000) String note,
+            Long sourceHazardFileId
     ) {}
 
     public record StatusUpdateRequest(
@@ -38,11 +44,18 @@ public final class ApiDtos {
             AssessmentType assessmentType,
             String team,
             String process,
+            String workContent,
+            String currentState,
             String hazardEvent,
             String improvementAction,
             int frequency,
             int severity,
             int riskScore,
+            Integer afterFrequency,
+            Integer afterSeverity,
+            Integer afterRiskScore,
+            String note,
+            Long sourceHazardFileId,
             ImprovementStatus status,
             LocalDate plannedDate,
             LocalDate completedDate,
@@ -67,6 +80,36 @@ public final class ApiDtos {
     ) {}
 
     public record UploadResponse(List<FileMetadataDto> files) {}
+
+    public record HazardAssessmentCreateRequest(
+            @NotNull @Min(2000) @Max(2100) Integer year,
+            @NotBlank @Size(max = 80) String team,
+            @Size(max = 120) String process,
+            @NotBlank @Size(max = 500) String workContent,
+            @NotBlank @Size(max = 4000) String hazardEvent,
+            @Size(max = 2000) String currentState,
+            @NotNull @Min(1) @Max(5) Integer frequency,
+            @NotNull @Min(1) @Max(4) Integer severity,
+            @NotNull LocalDate assessmentDate,
+            @Size(max = 2000) String note
+    ) {}
+
+    public record HazardAssessmentResponse(long fileId, int riskScore, boolean requiresImprovement, FileMetadataDto file) {}
+
+    public record PresentationDocumentDto(String fileName, double width, double height, List<PresentationSlideDto> slides) {}
+    public record PresentationSlideDto(int slideIndex, List<PresentationShapeDto> shapes) {}
+    public record PresentationShapeDto(int shapeIndex, String kind, double x, double y, double width,
+                                      double height, String text, List<List<String>> table) {}
+
+    public record PresentationEditRequest(@NotNull @Size(min = 1, max = 300) List<@Valid PresentationTextEdit> edits) {}
+
+    public record PresentationTextEdit(
+            @NotNull @Min(0) Integer slideIndex,
+            @NotNull @Min(0) Integer shapeIndex,
+            @Min(0) Integer rowIndex,
+            @Min(0) Integer columnIndex,
+            @NotNull @Size(max = 8192) String value
+    ) {}
 
     public record SpreadsheetEditRequest(@NotNull @Size(min = 1, max = 500) List<@Valid SpreadsheetCellEdit> edits) {}
 

@@ -156,6 +156,7 @@
     document.querySelector('#dashboard-sections').hidden = viewId !== 'dashboard-sections'
     document.querySelector('#assessment-hub-view').hidden = viewId !== 'assessment-hub-view'
     document.querySelector('#assessment-subcategory-view').hidden = viewId !== 'assessment-subcategory-view'
+    document.querySelector('#assessment-workflow-view').hidden = viewId !== 'assessment-workflow-view'
     document.querySelector('#team-process-view').hidden = viewId !== 'team-process-view'
     document.querySelector('#team-folder-view').hidden = viewId !== 'team-folder-view'
   }
@@ -289,6 +290,336 @@
         toast(`${process} 공정을 추가했습니다.`)
       } catch (error) { showRequestError(error) }
     })
+  }
+
+  const updateWorkflowPage = (title, description, content, submitText, onSubmit) => {
+    closeModal()
+    setPageView('assessment-workflow-view')
+    document.querySelector('#page-title').textContent = title
+    document.querySelector('#edit-dashboard-title-button').hidden = true
+    document.querySelector('#workflow-label').textContent = '위험성평가 실시'
+    document.querySelector('#workflow-title').textContent = title
+    document.querySelector('#workflow-description').textContent = description
+    document.querySelector('#breadcrumb-selection').textContent = title
+    document.querySelector('#workflow-content').replaceChildren(content)
+    const submit = document.querySelector('#workflow-submit-button')
+    submit.textContent = submitText
+    submit.onclick = onSubmit
+  }
+
+  const makeTeamProcessSelectors = (team, process) => {
+    team.replaceChildren(new Option('부서 / 팀 선택', ''))
+    Object.keys(teamProcesses).forEach((teamName) => team.add(new Option(teamName, teamName)))
+    const refresh = () => {
+      process.replaceChildren(new Option('팀 전체 / 공정 선택 안 함', ''))
+      ;(teamProcesses[team.value] || []).forEach((processName) => process.add(new Option(processName, processName)))
+      process.disabled = !(teamProcesses[team.value] || []).length
+    }
+    team.addEventListener('change', refresh)
+    refresh()
+  }
+
+  const showHazardEntryPage = (context) => {
+    const content = document.createElement('div')
+    content.className = 'workflow-form-grid'
+    const team = document.createElement('select')
+    const process = document.createElement('select')
+    makeTeamProcessSelectors(team, process)
+    team.value = context.team
+    team.dispatchEvent(new Event('change'))
+    process.value = context.process
+    team.disabled = true
+    process.disabled = true
+    const workContent = document.createElement('textarea')
+    workContent.maxLength = 500
+    workContent.placeholder = '예: 원료 투입, 설비 점검, 제품 포장'
+    const hazard = document.createElement('textarea')
+    hazard.maxLength = 4000
+    hazard.placeholder = '위험요인과 발생 가능한 재해형태를 구체적으로 작성하세요.'
+    const currentState = document.createElement('textarea')
+    currentState.maxLength = 2000
+    currentState.placeholder = '현재 상태와 시행 중인 안전조치를 작성하세요.'
+    const frequency = document.createElement('select')
+    frequency.innerHTML = '<option value="1">1 · 거의 없음</option><option value="2">2 · 낮음</option><option value="3">3 · 있음</option><option value="4">4 · 높음</option><option value="5">5 · 빈번함</option>'
+    frequency.value = '2'
+    const severity = document.createElement('select')
+    severity.innerHTML = '<option value="1">1 · 영향 없음</option><option value="2">2 · 경미한 재해</option><option value="3">3 · 경중한 재해</option><option value="4">4 · 중대 재해</option>'
+    severity.value = '2'
+    const assessmentDate = document.createElement('input')
+    assessmentDate.type = 'date'
+    assessmentDate.value = new Date().toISOString().slice(0, 10)
+    const note = document.createElement('textarea')
+    note.maxLength = 2000
+    const score = document.createElement('strong')
+    score.className = 'risk-score-preview'
+    const refreshScore = () => {
+      const value = Number(frequency.value) * Number(severity.value)
+      score.textContent = `빈도 ${frequency.value} × 강도 ${severity.value} = 위험도 ${value}${value >= 8 ? ' · 개선요청 작성' : ' · 엑셀에 저장'}`
+      score.classList.toggle('high', value >= 8)
+    }
+    frequency.addEventListener('change', refreshScore)
+    severity.addEventListener('change', refreshScore)
+    refreshScore()
+    const scoreRow = document.createElement('div')
+    scoreRow.className = 'form-row'
+    scoreRow.append(field('빈도 (1~5)', frequency), field('강도 (1~4)', severity))
+    const scoreBox = document.createElement('div')
+    scoreBox.className = 'risk-score-preview-row'
+    scoreBox.append(score)
+    content.append(field('부서 / 팀', team), field('공정', process), field('작업내용', workContent), field('유해·위험요인 및 재해형태', hazard), field('현재 상태 및 조치', currentState), scoreRow, scoreBox, field('평가일', assessmentDate), field('비고', note))
+    updateWorkflowPage('유해위험요인 작성', `${context.year}년 정기 위험성평가 · ${context.team}${context.process ? ` · ${context.process}` : ''}`, content, '위험도 계산 및 저장', async () => {
+      if (!workContent.value.trim() || !hazard.value.trim()) { toast('작업내용과 유해·위험요인을 입력해 주세요.'); return }
+      const payload = {
+        year: context.year, team: context.team, process: context.process,
+        workContent: workContent.value.trim(), hazardEvent: hazard.value.trim(), currentState: currentState.value.trim(),
+        frequency: Number(frequency.value), severity: Number(severity.value), assessmentDate: assessmentDate.value,
+        note: note.value.trim(),
+      }
+      try {
+        const result = await apiRequest('/api/files/hazard-assessments', { method: 'POST', body: JSON.stringify(payload) })
+        context.fileId = result.fileId
+        context.workContent = payload.workContent
+        context.hazardEvent = payload.hazardEvent
+        context.currentState = payload.currentState
+        context.frequency = payload.frequency
+        context.severity = payload.severity
+        context.riskScore = result.riskScore
+        context.note = payload.note
+        if (result.requiresImprovement) showImprovementRequestPage(context)
+        else {
+          await loadHighRiskItems()
+          showDashboardPage()
+          toast(`위험도 ${result.riskScore} 항목을 ${context.team}${context.process ? ` ${context.process}` : ''} 엑셀 시트에 저장했습니다.`)
+        }
+      } catch (error) { showRequestError(error) }
+    })
+  }
+
+  const showImprovementRequestPage = (context) => {
+    const content = document.createElement('div')
+    content.className = 'workflow-form-grid'
+    const team = document.createElement('select')
+    const process = document.createElement('select')
+    makeTeamProcessSelectors(team, process)
+    team.value = context.team || ''
+    team.dispatchEvent(new Event('change'))
+    process.value = context.process || ''
+    team.disabled = Boolean(context.fileId)
+    process.disabled = Boolean(context.fileId) || process.disabled
+    const workContent = document.createElement('textarea')
+    workContent.value = context.workContent || ''
+    workContent.maxLength = 500
+    const hazard = document.createElement('textarea')
+    hazard.value = context.hazardEvent || ''
+    hazard.maxLength = 4000
+    const currentState = document.createElement('textarea')
+    currentState.value = context.currentState || ''
+    currentState.maxLength = 2000
+    const action = document.createElement('textarea')
+    action.maxLength = 4000
+    action.placeholder = '개선·예방 대책을 구체적으로 작성하세요.'
+    const frequency = document.createElement('select')
+    frequency.innerHTML = '<option value="1">1 · 거의 없음</option><option value="2">2 · 낮음</option><option value="3">3 · 있음</option><option value="4">4 · 높음</option><option value="5">5 · 빈번함</option>'
+    frequency.value = String(context.frequency || 2)
+    const severity = document.createElement('select')
+    severity.innerHTML = '<option value="1">1 · 영향 없음</option><option value="2">2 · 경미한 재해</option><option value="3">3 · 경중한 재해</option><option value="4">4 · 중대 재해</option>'
+    severity.value = String(context.severity || 2)
+    const afterFrequency = document.createElement('select')
+    afterFrequency.innerHTML = '<option value="">개선 후 빈도 선택</option><option value="1">1 · 거의 없음</option><option value="2">2 · 낮음</option><option value="3">3 · 있음</option><option value="4">4 · 높음</option><option value="5">5 · 빈번함</option>'
+    const afterSeverity = document.createElement('select')
+    afterSeverity.innerHTML = '<option value="">개선 후 강도 선택</option><option value="1">1 · 영향 없음</option><option value="2">2 · 경미한 재해</option><option value="3">3 · 경중한 재해</option><option value="4">4 · 중대 재해</option>'
+    const date = document.createElement('input')
+    date.type = 'date'
+    const assignee = document.createElement('input')
+    assignee.maxLength = 100
+    assignee.placeholder = '담당자 이름'
+    const note = document.createElement('textarea')
+    note.maxLength = 2000
+    note.value = context.note || ''
+    if (context.fileId) [workContent, hazard, currentState, frequency, severity].forEach(control => { control.disabled = true })
+    let beforeScore = Number(frequency.value) * Number(severity.value)
+    const score = document.createElement('strong')
+    score.className = 'risk-score-preview high'
+    const refreshBeforeScore = () => {
+      beforeScore = Number(frequency.value) * Number(severity.value)
+      score.textContent = `개선 전 위험도 ${beforeScore}${context.fileId ? ' · 정기 평가 기준 8 이상' : ''}`
+      score.classList.toggle('high', beforeScore >= 8)
+    }
+    frequency.addEventListener('change', refreshBeforeScore)
+    severity.addEventListener('change', refreshBeforeScore)
+    refreshBeforeScore()
+    const scoreBox = document.createElement('div')
+    scoreBox.className = 'risk-score-preview-row'
+    scoreBox.append(score)
+    const riskRow = document.createElement('div')
+    riskRow.className = 'form-row'
+    riskRow.append(field('개선 전 빈도', frequency), field('개선 전 강도', severity))
+    const afterRow = document.createElement('div')
+    afterRow.className = 'form-row'
+    afterRow.append(field('개선 후 빈도 (선택)', afterFrequency), field('개선 후 강도 (선택)', afterSeverity))
+    content.append(field('부서 / 팀', team), field('공정', process), field('작업내용', workContent), field('위험요인 및 재해형태', hazard), field('현재 상태 및 조치', currentState), field('개선(예방)대책', action), riskRow, scoreBox, afterRow, field('개선 예정일', date), field('담당자', assignee), field('비고', note))
+    updateWorkflowPage('개선요청 작성', context.assessmentType === 'AD_HOC' ? '수시 위험성평가는 위험요인 시트를 거치지 않고 개선요청을 작성합니다.' : '위험도 8 이상 항목에 대한 개선·예방 대책을 작성하세요.', content, '개선요청 등록', async () => {
+      if (!team.value || !hazard.value.trim() || !action.value.trim()) { toast('부서·팀, 위험요인, 개선대책을 입력해 주세요.'); return }
+      if (context.assessmentType === 'REGULAR' && beforeScore < 8) { toast('정기 위험성평가 개선요청은 위험도 8 이상만 등록할 수 있습니다.'); return }
+      if (Boolean(afterFrequency.value) !== Boolean(afterSeverity.value)) { toast('개선 후 빈도와 강도를 함께 선택해 주세요.'); return }
+      if (afterFrequency.value && Number(afterFrequency.value) * Number(afterSeverity.value) >= beforeScore) { toast('개선 후 위험도는 개선 전보다 낮아야 합니다.'); return }
+      try {
+        await apiRequest('/api/improvements', {
+          method: 'POST',
+          body: JSON.stringify({
+            year: context.year, assessmentType: context.assessmentType, team: team.value, process: process.value,
+            workContent: workContent.value.trim(), currentState: currentState.value.trim(), hazardEvent: hazard.value.trim(),
+            improvementAction: action.value.trim(), frequency: Number(frequency.value), severity: Number(severity.value),
+            afterFrequency: afterFrequency.value ? Number(afterFrequency.value) : null,
+            afterSeverity: afterSeverity.value ? Number(afterSeverity.value) : null,
+            plannedDate: date.value || null, assignee: assignee.value.trim(),
+            note: note.value.trim() || (context.reason ? `수시 평가 사유: ${context.reason}` : ''),
+            sourceHazardFileId: context.fileId || null,
+          }),
+        })
+        await loadHighRiskItems()
+        showDashboardPage()
+        toast('개선요청을 등록했습니다. 상태는 요청으로 저장됩니다.')
+      } catch (error) { showRequestError(error) }
+    })
+  }
+
+  const startAssessmentFlow = () => {
+    const content = document.createElement('div')
+    const assessmentType = document.createElement('select')
+    assessmentType.innerHTML = '<option value="REGULAR">정기 위험성평가</option><option value="AD_HOC">수시 위험성평가</option>'
+    const team = document.createElement('select')
+    const process = document.createElement('select')
+    makeTeamProcessSelectors(team, process)
+    const reason = document.createElement('select')
+    reason.innerHTML = '<option value="">수시 평가 사유 선택</option><option>사고 발생</option><option>공정 변경</option><option>신규 공정·설비 추가</option><option>정비·보수</option><option>작업방법 변경</option><option>기타</option>'
+    const reasonField = field('수시 평가 사유', reason)
+    reasonField.hidden = true
+    assessmentType.addEventListener('change', () => { reasonField.hidden = assessmentType.value !== 'AD_HOC' })
+    content.append(field('평가 유형', assessmentType), field('부서 / 팀', team), field('공정', process), reasonField)
+    showModal('위험성평가 실시', '평가 유형과 부서·팀, 공정을 선택하세요.', content, '다음', (backdrop) => {
+      if (!team.value) { toast('부서 / 팀을 선택해 주세요.'); return }
+      if ((teamProcesses[team.value] || []).length && !process.value) { toast('평가할 공정을 선택해 주세요.'); return }
+      if (assessmentType.value === 'AD_HOC' && !reason.value) { toast('수시 평가 사유를 선택해 주세요.'); return }
+      const context = { year: currentYear, assessmentType: assessmentType.value, team: team.value, process: process.value, reason: reason.value }
+      backdrop.remove()
+      if (assessmentType.value === 'REGULAR') showHazardEntryPage(context)
+      else showImprovementRequestPage(context)
+    })
+  }
+
+  const openPresentationPreview = async (file) => {
+    const content = document.createElement('div')
+    const toolbar = document.createElement('div')
+    toolbar.className = 'xlsx-preview-actions'
+    const saveButton = document.createElement('button')
+    saveButton.type = 'button'
+    saveButton.className = 'button button-primary'
+    saveButton.textContent = '변경 내용 저장'
+    saveButton.disabled = true
+    const printButton = document.createElement('button')
+    printButton.type = 'button'
+    printButton.className = 'button button-secondary'
+    printButton.textContent = '인쇄'
+    printButton.addEventListener('click', () => window.print())
+    const downloadLink = document.createElement('a')
+    downloadLink.className = 'button button-secondary'
+    downloadLink.href = `/api/files/${file.id}/download`
+    downloadLink.textContent = '원본 다운로드'
+    toolbar.append(saveButton, printButton, downloadLink)
+    const status = document.createElement('p')
+    status.className = 'xlsx-preview-status'
+    status.textContent = '파워포인트를 브라우저에서 여는 중입니다…'
+    const viewport = document.createElement('div')
+    viewport.className = 'pptx-preview-slides'
+    const drafts = new Map()
+    content.append(toolbar, status, viewport)
+    showModal(file.originalName, '슬라이드의 텍스트와 표 셀을 편집한 뒤 저장하거나 인쇄할 수 있습니다.', content, '닫기', closeModal)
+    document.querySelector('.modal-card')?.classList.add('xlsx-preview-modal', 'pptx-preview-modal')
+    const keyFor = (slideIndex, shapeIndex, rowIndex = '', columnIndex = '') => `${slideIndex}:${shapeIndex}:${rowIndex}:${columnIndex}`
+    const addEditable = (element, edit, draftKey, original) => {
+      element.contentEditable = 'true'
+      element.spellcheck = false
+      element.dataset.originalValue = original
+      element.addEventListener('input', () => {
+        const changed = element.textContent !== element.dataset.originalValue
+        element.classList.toggle('is-edited', changed)
+        if (changed) drafts.set(draftKey, edit(element.textContent || ''))
+        else drafts.delete(draftKey)
+        saveButton.disabled = drafts.size === 0
+        const preview = document.querySelector('.pptx-preview-modal')
+        if (preview) preview.dataset.unsaved = String(drafts.size > 0)
+      })
+    }
+    const renderDeck = (deck) => {
+      viewport.replaceChildren()
+      deck.slides.forEach((slide) => {
+        const slideElement = document.createElement('section')
+        slideElement.className = 'pptx-slide-canvas'
+        slideElement.style.aspectRatio = `${deck.width} / ${deck.height}`
+        slideElement.setAttribute('aria-label', `슬라이드 ${slide.slideIndex + 1}`)
+        slide.shapes.forEach((shape) => {
+          const box = document.createElement('div')
+          box.className = `pptx-slide-shape pptx-shape-${shape.kind}`
+          box.style.left = `${shape.x / deck.width * 100}%`
+          box.style.top = `${shape.y / deck.height * 100}%`
+          box.style.width = `${shape.width / deck.width * 100}%`
+          box.style.height = `${shape.height / deck.height * 100}%`
+          if (shape.kind === 'table') {
+            const table = document.createElement('table')
+            table.className = 'pptx-edit-table'
+            const body = document.createElement('tbody')
+            shape.table.forEach((cells, rowIndex) => {
+              const row = document.createElement('tr')
+              cells.forEach((value, columnIndex) => {
+                const cell = document.createElement('td')
+                cell.textContent = value
+                const key = keyFor(slide.slideIndex, shape.shapeIndex, rowIndex, columnIndex)
+                addEditable(cell, next => ({ slideIndex: slide.slideIndex, shapeIndex: shape.shapeIndex, rowIndex, columnIndex, value: next }), key, value)
+                row.append(cell)
+              })
+              body.append(row)
+            })
+            table.append(body)
+            box.append(table)
+          } else if (shape.kind === 'text') {
+            box.textContent = shape.text
+            const key = keyFor(slide.slideIndex, shape.shapeIndex)
+            addEditable(box, next => ({ slideIndex: slide.slideIndex, shapeIndex: shape.shapeIndex, value: next }), key, shape.text)
+          }
+          slideElement.append(box)
+        })
+        viewport.append(slideElement)
+      })
+    }
+    try {
+      const deck = await apiRequest(`/api/files/${file.id}/presentation`)
+      renderDeck(deck)
+      status.textContent = `${deck.slides.length}개 슬라이드 · 텍스트/표 셀을 직접 편집할 수 있습니다.`
+      saveButton.addEventListener('click', async () => {
+        if (!drafts.size) return
+        saveButton.disabled = true
+        saveButton.textContent = '저장 중…'
+        try {
+          await apiRequest(`/api/files/${file.id}/presentation`, { method: 'PUT', body: JSON.stringify({ edits: Array.from(drafts.values()) }) })
+          drafts.clear()
+          const refreshed = await apiRequest(`/api/files/${file.id}/presentation`)
+          renderDeck(refreshed)
+          const preview = document.querySelector('.pptx-preview-modal')
+          if (preview) preview.dataset.unsaved = 'false'
+          status.textContent = '수정 내용을 원본 파워포인트 파일에 저장했습니다.'
+          toast('파워포인트 수정 내용을 저장했습니다.')
+        } catch (error) {
+          showRequestError(error)
+          status.textContent = '저장하지 못했습니다. 내용을 확인하고 다시 시도해 주세요.'
+        } finally {
+          saveButton.textContent = '변경 내용 저장'
+          saveButton.disabled = drafts.size === 0
+        }
+      })
+    } catch (error) {
+      status.textContent = error.message || 'PPTX 미리보기를 불러오지 못했습니다.'
+    }
   }
 
   const showFolderView = async (scope, returnMode = 'dashboard') => {
@@ -501,10 +832,12 @@
         const link = document.createElement('a')
         const extension = file.originalName.split('.').pop().toLowerCase()
         const isSpreadsheet = activeFolderScope.category === 'HAZARD_RISK' && ['xls', 'xlsx'].includes(extension)
-        link.className = isSpreadsheet ? 'folder-preview-link' : 'folder-download-link'
-        link.href = isSpreadsheet ? '#' : `/api/files/${file.id}/download`
+        const isEditablePresentation = activeFolderScope.category === 'IMPROVEMENT_REQUEST' && extension === 'pptx'
+        link.className = isSpreadsheet || isEditablePresentation ? 'folder-preview-link' : 'folder-download-link'
+        link.href = isSpreadsheet || isEditablePresentation ? '#' : `/api/files/${file.id}/download`
         link.textContent = file.originalName
         if (isSpreadsheet) link.addEventListener('click', (event) => { event.preventDefault(); openSpreadsheetPreview(file) })
+        if (isEditablePresentation) link.addEventListener('click', (event) => { event.preventDefault(); openPresentationPreview(file) })
         nameCell.append(link)
         row.insertCell().textContent = file.originalName.split('.').pop().toUpperCase()
         row.insertCell().textContent = `${Math.max(1, Math.ceil(file.fileSize / 1024))} KB`
@@ -548,9 +881,9 @@
 
   const createStatusSelect = (item) => {
     const select = document.createElement('select')
-    select.className = `improvement-status-select ${item.status === 'COMPLETED' ? 'status-completed' : 'status-in-progress'}`
+    select.className = `improvement-status-select status-${item.status.toLowerCase().replaceAll('_', '-')}`
     select.setAttribute('aria-label', `${item.hazardEvent} 개선 상태`)
-    select.innerHTML = '<option value="IN_PROGRESS">개선 진행 중</option><option value="COMPLETED">개선 완료</option>'
+    select.innerHTML = '<option value="REQUESTED">요청</option><option value="IN_PROGRESS">진행</option><option value="COMPLETED">완료</option>'
     select.value = item.status
     select.disabled = false
     select.dataset.improvementId = item.id
@@ -731,6 +1064,10 @@
     })
   })
 
+  document.querySelector('#add-improvement-button')?.addEventListener('click', (event) => {
+    event.stopImmediatePropagation()
+    startAssessmentFlow()
+  }, true)
   const addImprovementButton = document.querySelector('#add-improvement-button')
   addImprovementButton?.addEventListener('click', () => {
     const content = document.createElement('div')
@@ -832,7 +1169,7 @@
         closeModal()
         await loadHighRiskItems()
         if (!document.querySelector('#completed-list-content')?.hidden) await loadCompletedItems()
-        toast(nextValue === 'COMPLETED' ? '개선 완료 처리했습니다.' : '개선 진행 중으로 변경했습니다.')
+        toast(nextValue === 'COMPLETED' ? '개선 완료 처리했습니다.' : nextValue === 'REQUESTED' ? '개선요청 상태로 변경했습니다.' : '개선 진행 상태로 변경했습니다.')
       } catch (error) {
         select.value = previousValue
         showRequestError(error)
@@ -888,67 +1225,9 @@
     })
   })
 
-  const newAssessmentButton = document.querySelector('#new-assessment-button')
-  newAssessmentButton?.addEventListener('click', () => {
-    const form = document.createElement('div')
-    const assessmentType = document.createElement('select')
-    assessmentType.innerHTML = '<option value="정기">정기 평가 · 연 1회</option><option value="수시">수시 평가 · 사유 발생</option>'
-    const team = document.createElement('input')
-    team.placeholder = '예: 공무팀 보전파트'
-    const process = document.createElement('input')
-    process.placeholder = '예: 화장지 4호기'
-    const reason = document.createElement('select')
-    reason.innerHTML = '<option value="">사유 선택</option><option>사고 발생</option><option>공정 변경</option><option>신규 공정·설비 추가</option><option>정비·보수</option><option>작업방법 변경</option><option>기타</option>'
-    const date = document.createElement('input')
-    date.type = 'date'
-    date.value = new Date().toISOString().slice(0, 10)
-    const typeField = field('평가 유형', assessmentType)
-    const reasonField = field('수시 평가 사유', reason)
-    const reasonHelp = document.createElement('small')
-    reasonHelp.className = 'form-help'
-    reasonHelp.textContent = '정기 평가를 선택하면 사유 입력은 생략할 수 있습니다.'
-    reasonField.append(reasonHelp)
-    assessmentType.addEventListener('change', () => {
-      reasonField.hidden = assessmentType.value !== '수시'
-    })
-    reasonField.hidden = true
-    form.append(
-      typeField,
-      field('부서 / 팀', team),
-      field('공정명', process),
-      reasonField,
-      field('평가 기준일', date),
-    )
-    showModal('새 위험성평가 만들기', '평가 기본 정보를 입력해 주세요. 세부 위험요인은 다음 단계에서 작성합니다.', form, '평가 시작', (backdrop) => {
-      if (!team.value.trim() || !process.value.trim()) {
-        toast('부서와 공정명을 입력해 주세요.')
-        return
-      }
-      if (assessmentType.value === '수시' && !reason.value) {
-        toast('수시 평가 사유를 선택해 주세요.')
-        return
-      }
-      const tbody = document.querySelector('#assessment-table-body')
-      const row = document.createElement('tr')
-      row.dataset.type = assessmentType.value === '정기' ? 'regular' : 'adhoc'
-      row.dataset.search = `${team.value} ${process.value} ${assessmentType.value}`
-      row.innerHTML = `
-        <td><div class="assessment-name"><span class="assessment-symbol symbol-mint"></span><span><strong></strong><small></small></span></div></td>
-        <td><span class="type-badge"></span></td><td><span class="author-cell"><i class="author-avatar avatar-teal">김</i> 김안전</span></td>
-        <td><div class="progress-cell"><div class="table-progress"><span style="width:0%"></span></div><small>0%</small></div></td>
-        <td><span class="risk-count">-</span></td><td><span class="status-badge status-progress"><i></i> 작성 중</span></td><td><button class="row-menu" type="button" aria-label="평가 메뉴">···</button></td>`
-      row.querySelector('.assessment-symbol').textContent = team.value.trim().slice(0, 1)
-      row.querySelector('.assessment-name strong').textContent = process.value.trim() + ' 위험성평가'
-      row.querySelector('.assessment-name small').textContent = team.value.trim() + ' · ' + process.value.trim()
-      const badge = row.querySelector('.type-badge')
-      badge.textContent = assessmentType.value
-      badge.classList.add(assessmentType.value === '정기' ? 'type-regular' : 'type-adhoc')
-      tbody.prepend(row)
-      document.querySelector('#total-count').textContent = String(Number(document.querySelector('#total-count').textContent) + 1)
-      backdrop.remove()
-      toast(`${process.value.trim()} 평가 초안을 만들었습니다. (샘플 화면)`)
-    })
-  })
+  document.querySelector('#new-assessment-button')?.addEventListener('click', startAssessmentFlow)
+  document.querySelector('#workflow-back-button')?.addEventListener('click', showDashboardPage)
+  document.querySelector('#workflow-cancel-button')?.addEventListener('click', showDashboardPage)
 
   const uploadButton = document.querySelector('#open-photo-modal')
   uploadButton?.addEventListener('click', () => {
@@ -989,34 +1268,7 @@
     })
   })
 
-  const dashboardScaleInput = document.querySelector('#dashboard-size-range')
-  const dashboardScaleOutput = document.querySelector('#dashboard-size-value')
-  const dashboardContent = document.querySelector('.page-content')
-  const decreaseDashboardButton = document.querySelector('#dashboard-size-decrease')
-  const increaseDashboardButton = document.querySelector('#dashboard-size-increase')
-
-  const updateDashboardSize = (value, persist = true) => {
-    const scale = Math.max(85, Math.min(115, Math.round(Number(value) / 5) * 5))
-    if (!dashboardScaleInput || !dashboardContent) return
-    const scaleFactor = scale / 100
-    dashboardScaleInput.value = String(scale)
-    dashboardContent.style.setProperty('--dashboard-scale', String(scaleFactor))
-    if (dashboardScaleOutput) dashboardScaleOutput.textContent = `${scale}%`
-    if (decreaseDashboardButton) decreaseDashboardButton.disabled = scale <= 85
-    if (increaseDashboardButton) increaseDashboardButton.disabled = scale >= 115
-    if (persist) {
-      try { localStorage.setItem('safety-dashboard-scale', String(scale)) } catch (_) { /* storage may be blocked */ }
-    }
-  }
-
-  if (dashboardScaleInput) {
-    let savedScale = 100
-    try { savedScale = Number(localStorage.getItem('safety-dashboard-scale')) || 100 } catch (_) { /* use default scale */ }
-    updateDashboardSize(savedScale, false)
-    dashboardScaleInput.addEventListener('input', () => updateDashboardSize(dashboardScaleInput.value))
-  }
-  decreaseDashboardButton?.addEventListener('click', () => updateDashboardSize(Number(dashboardScaleInput?.value || 100) - 5))
-  increaseDashboardButton?.addEventListener('click', () => updateDashboardSize(Number(dashboardScaleInput?.value || 100) + 5))
+  document.querySelector('.page-content')?.style.setProperty('--dashboard-scale', '1.25')
 
 
 
