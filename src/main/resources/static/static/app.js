@@ -490,79 +490,143 @@
     refresh()
   }
 
-  const showHazardEntryPage = (context) => {
-    const content = document.createElement('div')
-    content.className = 'workflow-form-grid'
-    const team = document.createElement('select')
-    const process = document.createElement('select')
-    makeTeamProcessSelectors(team, process)
-    team.value = context.team
-    team.dispatchEvent(new Event('change'))
-    process.value = context.process
-    team.disabled = true
-    process.disabled = true
-    const workContent = document.createElement('textarea')
-    workContent.maxLength = 500
-    workContent.placeholder = '예: 원료 투입, 설비 점검, 제품 포장'
-    const hazard = document.createElement('textarea')
-    hazard.maxLength = 4000
-    hazard.placeholder = '위험요인과 발생 가능한 재해형태를 구체적으로 작성하세요.'
-    const currentState = document.createElement('textarea')
-    currentState.maxLength = 2000
-    currentState.placeholder = '현재 상태와 시행 중인 안전조치를 작성하세요.'
+  const createHazardAssessmentRow = (rowNumber) => {
+    const row = document.createElement('tr')
+    const makeInput = (placeholder, maxLength, ariaLabel) => {
+      const input = document.createElement('textarea')
+      input.placeholder = placeholder
+      input.maxLength = maxLength
+      input.setAttribute('aria-label', ariaLabel)
+      return input
+    }
+    const workContent = makeInput('작업내용', 500, '작업내용')
+    const hazard = makeInput('유해 위험요인을 자세히 입력', 4000, '유해 위험요인 및 재해형태')
+    const currentState = makeInput('현재 상태 및 조치', 2000, '현재상태 및 조치')
     const frequency = document.createElement('select')
-    frequency.innerHTML = '<option value="1">1 · 거의 없음</option><option value="2">2 · 낮음</option><option value="3">3 · 있음</option><option value="4">4 · 높음</option><option value="5">5 · 빈번함</option>'
-    frequency.value = '2'
+    frequency.setAttribute('aria-label', '가능성 빈도')
+    frequency.innerHTML = '<option value="">선택</option><option value="1">1 · 거의 없음</option><option value="2">2 · 낮음</option><option value="3">3 · 있음</option><option value="4">4 · 높음</option><option value="5">5 · 빈번함</option>'
     const severity = document.createElement('select')
-    severity.innerHTML = '<option value="1">1 · 영향 없음</option><option value="2">2 · 경미한 재해</option><option value="3">3 · 경중한 재해</option><option value="4">4 · 중대 재해</option>'
-    severity.value = '2'
-    const note = document.createElement('textarea')
-    note.maxLength = 2000
+    severity.setAttribute('aria-label', '중대성 강도')
+    severity.innerHTML = '<option value="">선택</option><option value="1">1 · 영향 없음</option><option value="2">2 · 경미한 재해</option><option value="3">3 · 경중한 재해</option><option value="4">4 · 중대 재해</option>'
+    const note = makeInput('비고', 2000, '비고')
     const score = document.createElement('strong')
     score.className = 'risk-score-preview'
+    const improvement = document.createElement('span')
+    const afterRisk = document.createElement('span')
+    const plannedDate = document.createElement('span')
+    const completedDate = document.createElement('span')
+    const assignee = document.createElement('span')
+    const append = (value, className) => {
+      const cell = document.createElement('td')
+      cell.className = className
+      cell.append(value instanceof Node ? value : document.createTextNode(value))
+      row.append(cell)
+    }
     const refreshScore = () => {
-      const value = Number(frequency.value) * Number(severity.value)
-      score.textContent = `빈도 ${frequency.value} × 강도 ${severity.value} = 위험도 ${value}${value >= 8 ? ' · 개선요청 작성' : ' · 엑셀에 저장'}`
-      score.classList.toggle('high', value >= 8)
+      const risk = frequency.value && severity.value ? Number(frequency.value) * Number(severity.value) : null
+      score.textContent = risk == null ? '—' : `${frequency.value} × ${severity.value} = ${risk}`
+      score.classList.toggle('high', risk != null && risk >= 8)
+      improvement.textContent = risk == null || risk < 8 ? '—' : '개선요청 단계에서 작성'
+      afterRisk.textContent = risk != null && risk >= 8 ? '개선요청 단계' : '—'
+      plannedDate.textContent = risk != null && risk >= 8 ? '개선요청 단계' : '—'
+      completedDate.textContent = '—'
+      assignee.textContent = risk != null && risk >= 8 ? '개선요청 단계' : '—'
     }
     frequency.addEventListener('change', refreshScore)
     severity.addEventListener('change', refreshScore)
+    append(String(rowNumber), 'risk-register-number')
+    append(workContent, 'risk-register-input-cell')
+    append(hazard, 'risk-register-input-cell')
+    append(currentState, 'risk-register-input-cell')
+    append(frequency, 'risk-register-select-cell')
+    append(severity, 'risk-register-select-cell')
+    append(score, 'risk-register-score-cell')
+    append(improvement, 'risk-register-followup-cell')
+    append(afterRisk, 'risk-register-followup-cell')
+    append(plannedDate, 'risk-register-followup-cell')
+    append(completedDate, 'risk-register-followup-cell')
+    append(assignee, 'risk-register-followup-cell')
+    append(note, 'risk-register-input-cell')
     refreshScore()
-    const scoreRow = document.createElement('div')
-    scoreRow.className = 'form-row'
-    scoreRow.append(field('빈도 (1~5)', frequency), field('강도 (1~4)', severity))
-    const scoreBox = document.createElement('div')
-    scoreBox.className = 'risk-score-preview-row'
-    scoreBox.append(score)
+    return {
+      row,
+      isValid: () => Boolean(workContent.value.trim() && hazard.value.trim() && frequency.value && severity.value),
+      riskScore: () => Number(frequency.value) * Number(severity.value),
+      values: () => ({
+        workContent: workContent.value.trim(), hazardEvent: hazard.value.trim(), currentState: currentState.value.trim(),
+        frequency: Number(frequency.value), severity: Number(severity.value), note: note.value.trim(),
+      }),
+    }
+  }
+
+  const showHazardEntryPage = (context) => {
+    const content = document.createElement('div')
+    content.className = 'risk-register-workflow'
     const evaluationSummary = document.createElement('div')
     evaluationSummary.className = 'assessment-meta-summary'
     evaluationSummary.textContent = `평가일시 ${context.assessmentAt.replace('T', ' ')} · 평가자 ${context.evaluator} · 참여자 ${context.participants}`
-    content.append(evaluationSummary, field('부서 / 팀', team), field('공정', process), field('작업내용', workContent), field('유해·위험요인 및 재해형태', hazard), field('현재 상태 및 조치', currentState), scoreRow, scoreBox, field('비고', note))
+    const toolbar = document.createElement('div')
+    toolbar.className = 'risk-register-toolbar'
+    const rowCount = document.createElement('span')
+    const addRowButton = document.createElement('button')
+    addRowButton.type = 'button'
+    addRowButton.className = 'button button-secondary'
+    addRowButton.textContent = '행 추가'
+    toolbar.append(rowCount, addRowButton)
+    const scroll = document.createElement('div')
+    scroll.className = 'risk-register-sheet-scroll'
+    const table = document.createElement('table')
+    table.className = 'risk-register-sheet'
+    const headers = ['번호', '작업내용', '유해 위험요인', '현재상태 및 조치', '가능성 (빈도)', '중대성 (강도)', '현재 위험성', '감소 대책 (위험성 8 이상 시)', '개선후 위험성 (추정)', '개선일 (예정일)', '완료일', '담당자', '비고']
+    const thead = document.createElement('thead')
+    const headerRow = document.createElement('tr')
+    headers.forEach((title) => { const th = document.createElement('th'); th.textContent = title; headerRow.append(th) })
+    thead.append(headerRow)
+    const tbody = document.createElement('tbody')
+    const rows = []
+    const addRow = () => {
+      if (rows.length >= 13) { toast('원본 양식의 최대 행 수인 13개까지 추가할 수 있습니다.'); return }
+      const row = createHazardAssessmentRow(rows.length + 1)
+      rows.push(row)
+      tbody.append(row.row)
+      rowCount.textContent = `위험요인 ${rows.length} / 13`
+      addRowButton.disabled = rows.length >= 13
+    }
+    addRowButton.addEventListener('click', addRow)
+    addRow()
+    table.append(thead, tbody)
+    scroll.append(table)
+    content.append(evaluationSummary, toolbar, scroll)
     updateWorkflowPage('유해위험요인 작성', `${context.year}년 정기 위험성평가 · ${context.team}${context.process ? ` · ${context.process}` : ''}`, content, '위험도 계산 및 저장', async () => {
-      if (!workContent.value.trim() || !hazard.value.trim()) { toast('작업내용과 유해·위험요인을 입력해 주세요.'); return }
-      const payload = {
-        year: context.year, team: context.team, process: context.process,
-        assessmentAt: context.assessmentAt, evaluator: context.evaluator, participants: context.participants,
-        assessmentReason: context.assessmentReason || null,
-        workContent: workContent.value.trim(), hazardEvent: hazard.value.trim(), currentState: currentState.value.trim(),
-        frequency: Number(frequency.value), severity: Number(severity.value),
-        note: note.value.trim(),
+      if (!rows.length || rows.some(row => !row.isValid())) {
+        toast('각 행의 작업내용, 유해 위험요인, 빈도, 강도를 입력해 주세요.')
+        return
       }
       try {
-        const result = await apiRequest('/api/files/hazard-assessments', { method: 'POST', body: JSON.stringify(payload) })
-        context.fileId = result.fileId
-        context.workContent = payload.workContent
-        context.hazardEvent = payload.hazardEvent
-        context.currentState = payload.currentState
-        context.frequency = payload.frequency
-        context.severity = payload.severity
-        context.riskScore = result.riskScore
-        context.note = payload.note
-        if (result.requiresImprovement) showImprovementRequestPage(context)
-        else {
+        const highRiskRows = []
+        let fileId = null
+        for (const row of rows) {
+          const values = row.values()
+          const result = await apiRequest('/api/files/hazard-assessments', {
+            method: 'POST',
+            body: JSON.stringify({
+              year: context.year, team: context.team, process: context.process,
+              assessmentAt: context.assessmentAt, evaluator: context.evaluator, participants: context.participants,
+              assessmentReason: context.assessmentReason || null,
+              ...values,
+            }),
+          })
+          fileId = result.fileId
+          if (result.requiresImprovement) highRiskRows.push({ ...context, ...values, fileId: result.fileId, riskScore: result.riskScore })
+        }
+        if (highRiskRows.length) {
+          const [first, ...remaining] = highRiskRows
+          first.remainingHighRisk = remaining
+          showImprovementRequestPage(first)
+        } else {
           await loadHighRiskItems()
           showDashboardPage()
-          toast(`위험도 ${result.riskScore} 항목을 ${context.team}${context.process ? ` ${context.process}` : ''} 엑셀 시트에 저장했습니다.`)
+          toast(`${rows.length}개 위험요인을 ${context.team}${context.process ? ` ${context.process}` : ''} 원본 Excel 시트에 저장했습니다. (파일 ${fileId})`)
         }
       } catch (error) { showRequestError(error) }
     })
@@ -656,8 +720,14 @@
           }),
         })
         await loadHighRiskItems()
-        showDashboardPage()
-        toast('개선요청을 등록했습니다. 상태는 요청으로 저장됩니다.')
+        if (context.remainingHighRisk?.length) {
+          const [next, ...remaining] = context.remainingHighRisk
+          next.remainingHighRisk = remaining
+          showImprovementRequestPage(next)
+        } else {
+          showDashboardPage()
+          toast('개선요청을 등록했습니다. 상태는 요청으로 저장됩니다.')
+        }
       } catch (error) { showRequestError(error) }
     })
   }

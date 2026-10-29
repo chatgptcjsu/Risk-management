@@ -295,8 +295,8 @@ public class FileStorageService {
                 Integer afterScore = request.afterFrequency() == null || request.afterSeverity() == null
                         ? null : request.afterFrequency() * request.afterSeverity();
                 String hazardText = "작업내용: " + clean(request.workContent())
-                        + "\\n현재 상태: " + clean(request.currentState())
-                        + "\\n위험요인: " + request.hazardEvent().trim();
+                        + "\n현재 상태: " + clean(request.currentState())
+                        + "\n위험요인: " + request.hazardEvent().trim();
                 setPresentationCell(table, 1, 0, hazardText);
                 setPresentationCell(table, 1, 2, request.improvementAction().trim());
                 setPresentationCell(table, 1, 4, "개선 전: " + beforeScore + " / 개선 후: " + (afterScore == null ? "미입력" : afterScore));
