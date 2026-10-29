@@ -27,12 +27,14 @@ public class ImprovementService {
     private final ImprovementRepository improvements;
     private final ImprovementStatusHistoryRepository history;
     private final StoredFileRepository files;
+    private final FileStorageService fileStorage;
 
     public ImprovementService(ImprovementRepository improvements, ImprovementStatusHistoryRepository history,
-                             StoredFileRepository files) {
+                             StoredFileRepository files, FileStorageService fileStorage) {
         this.improvements = improvements;
         this.history = history;
         this.files = files;
+        this.fileStorage = fileStorage;
     }
 
     @Transactional(readOnly = true)
@@ -78,7 +80,9 @@ public class ImprovementService {
                 clean(request.workContent()), clean(request.currentState()), request.hazardEvent().trim(),
                 request.improvementAction().trim(), request.frequency(), request.severity(),
                 request.afterFrequency(), request.afterSeverity(), request.plannedDate(),
-                clean(request.assignee()), clean(request.note()), request.sourceHazardFileId(), username);
+                clean(request.assignee()), clean(request.note()), request.sourceHazardFileId(), null, username);
+        StoredFile presentation = fileStorage.createImprovementPresentation(request, username);
+        item.setPresentationFileId(presentation.getId());
         return toDto(improvements.save(item));
     }
 
@@ -113,7 +117,7 @@ public class ImprovementService {
                 item.getWorkContent(), item.getCurrentState(), item.getHazardEvent(),
                 item.getImprovementAction(), item.getFrequency(), item.getSeverity(), item.getRiskScore(),
                 item.getAfterFrequency(), item.getAfterSeverity(), item.getAfterRiskScore(), item.getNote(),
-                item.getSourceHazardFileId(), item.getStatus(), item.getPlannedDate(), item.getCompletedDate(), item.getAssignee(),
+                item.getSourceHazardFileId(), item.getPresentationFileId(), item.getStatus(), item.getPlannedDate(), item.getCompletedDate(), item.getAssignee(),
                 item.getCreatedBy(), item.getCreatedAt(), item.getUpdatedAt());
     }
 
